@@ -57,6 +57,16 @@ python -m seir.cli --edges red.csv --days 10 --beta 0.2 --sigma 0.5 --gamma 0.3 
 - Las transiciones se calculan sobre una instantánea y se aplican al final: un `E` nuevo no progresa ese día y un `I` nuevo no expone a nadie hasta el siguiente.
 - `new_s_to_e` cuenta solo las transiciones `S → E` del paso; `cumulative` arranca en `E0 + I0` y suma esas transiciones. `R0` no suma.
 
+## Web local
+
+```bash
+python -m seir.web
+```
+
+Abre `http://127.0.0.1:8000`. La página tiene cajas para población, días, semilla, `beta`, `sigma`, `gamma`, grado promedio y los recuentos iniciales. Al pulsar **Simular** se dibujan las curvas de S, E, I y R y las barras de nuevos expuestos por día, más un resumen con el pico de I.
+
+El servidor solo escucha en `127.0.0.1`, no guarda nada y no tiene autenticación. Los límites son `n <= 2000` y `days <= 365`; una entrada inválida muestra el mensaje sin recargar la página.
+
 ## Comprobar
 
 ```bash

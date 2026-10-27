@@ -30,6 +30,14 @@ class SimulationResult:
     def to_rows(self) -> list[dict]:
         return [asdict(record) for record in self.records]
 
+    def to_payload(self) -> dict:
+        meta = asdict(self.config)
+        for name in ("init_e", "init_i", "init_r"):
+            if meta[name] is not None:
+                meta[name] = sorted(meta[name])
+        meta["average_degree"] = round(self.average_degree, 6)
+        return {"meta": meta, "days": self.to_rows()}
+
 
 class SeirEngine:
     def __init__(self, graph: Graph, config: SimulationConfig, initial_state: InitialState) -> None:

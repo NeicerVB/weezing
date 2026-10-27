@@ -4,7 +4,6 @@ import argparse
 import json
 import random
 import sys
-from dataclasses import asdict
 from pathlib import Path
 
 from .config import SimulationConfig
@@ -59,12 +58,7 @@ def format_table(result: SimulationResult) -> str:
 
 
 def format_json(result: SimulationResult) -> str:
-    meta = asdict(result.config)
-    for name in ("init_e", "init_i", "init_r"):
-        if meta[name] is not None:
-            meta[name] = sorted(meta[name])
-    meta["average_degree"] = round(result.average_degree, 6)
-    return json.dumps({"meta": meta, "days": result.to_rows()}, allow_nan=False)
+    return json.dumps(result.to_payload(), allow_nan=False)
 
 
 def main(argv: list[str] | None = None) -> int:

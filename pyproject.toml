@@ -13,6 +13,7 @@ test = ["pytest"]
 
 [project.scripts]
 weezing-seir = "seir.cli:main"
+weezing-web = "seir.web:main"
 
 [tool.setuptools.packages.find]
 include = ["seir*"]
