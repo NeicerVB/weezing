@@ -1,0 +1,8 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.env
+.env.*
+resultados_simulador/
+aws-outputs.json
