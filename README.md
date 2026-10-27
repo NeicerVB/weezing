@@ -1,24 +1,61 @@
-# weezing — demostración SEIR agregada
+# weezing — autómata SEIR sobre grafos
 
-Simulación didáctica de cuatro compartimentos (S, E, I, R) con salida diaria reproducible. Solo usa la biblioteca estándar de Python; no requiere instalar el paquete para ejecutarlo desde este directorio.
+Simulación discreta de cuatro estados (`S`, `E`, `I`, `R`) sobre un grafo no dirigido sintético o cargado desde archivo. Un nodo avanza como máximo una vez por día y todos los cambios del día se aplican juntos. Solo usa la biblioteca estándar de Python; no requiere instalar nada para ejecutarlo desde este directorio.
+
+Es un modelo abstracto de difusión en redes, no un modelo epidemiológico calibrado. Los valores de `beta`, `sigma` y `gamma` son supuestos computacionales entre 0 y 1.
 
 ## Ejecutar
 
 ```bash
-python -m seir.cli --n 500 --days 30 --beta 0.03 --sigma 0.2 --gamma 0.1 --seed 42 --e0 5 --i0 3
+python -m seir.cli --n 500 --days 30 --beta 0.03 --sigma 0.2 --gamma 0.1 \
+  --degree 6 --seed 42 --e0 5 --i0 3
 ```
 
-La salida predeterminada es una tabla con el día 0 y los 30 días siguientes. Añade `--format json` para obtener un objeto con `meta` (parámetros efectivos) y `days` (los registros). La misma configuración y semilla producen exactamente la misma salida.
+La tabla incluye el día 0 (foto inicial) y los 30 pasos siguientes. Para JSON:
+
+```bash
+python -m seir.cli --n 500 --days 30 --beta 0.03 --sigma 0.2 --gamma 0.1 \
+  --seed 42 --e0 5 --i0 3 --format json
+```
+
+La misma configuración y semilla producen exactamente la misma salida.
 
 | Parámetro | Significado |
 | --- | --- |
-| `--n`, `--days` | Población total y número de pasos; `n > 0`, `days >= 0`. |
-| `--beta` | Mezcla homogénea abstracta diaria entre 0 y 1. |
-| `--sigma`, `--gamma` | Probabilidad diaria E→I e I→R, entre 0 y 1. |
-| `--e0`, `--i0`, `--r0` | Recuentos iniciales, por defecto 0; S inicial es el resto. |
-| `--seed` | Semilla de los sorteos, por defecto 0. |
+| `--n` | Número de nodos, identificados `0 .. n-1`. Se infiere de `--edges` si se omite. |
+| `--days` | Pasos diarios después del día 0; `days >= 0`. Por defecto 30. |
+| `--beta` | Probabilidad abstracta por enlace activo y día. |
+| `--sigma` | Probabilidad diaria `E → I`. |
+| `--gamma` | Probabilidad diaria `I → R`. |
+| `--seed` | Semilla de la topología, de los IDs iniciales y de cada sorteo. Por defecto 0. |
+| `--degree` | Grado promedio objetivo del grafo generado. Por defecto 6. |
+| `--edges` | CSV/TSV con aristas; tiene prioridad sobre `--degree`. |
+| `--e0`, `--i0`, `--r0` | Recuentos iniciales; si se omite el recuento, se deduce de los IDs dados. |
+| `--init-e`, `--init-i`, `--init-r` | IDs concretos separados por comas, p. ej. `--init-i 7,8,9`. |
+| `--format` | `table` (predeterminado) o `json`. |
 
-Cada día se calculan las transiciones desde los recuentos al inicio de ese día: la probabilidad abstracta de S→E es `beta × I / N`. Los nuevos E no avanzan ni contribuyen a nuevas exposiciones ese mismo día. `new_s_to_e` cuenta solo las transiciones de ese día; `cumulative` empieza en `E0 + I0` y suma esas transiciones, sin incluir `R0`.
+## Grafo explícito
+
+Cada arista debe aparecer en ambos sentidos; la carga rechaza asimetrías, bucles e IDs fuera de rango. Se admiten comas o tabuladores, líneas vacías y la cabecera `a,b`.
+
+```text
+a,b
+0,1
+1,0
+1,2
+2,1
+```
+
+```bash
+python -m seir.cli --edges red.csv --days 10 --beta 0.2 --sigma 0.5 --gamma 0.3 --init-i 0
+```
+
+## Reglas del modelo
+
+- Un nodo `S` con `k` vecinos en `I` al inicio del día pasa a `E` con probabilidad `1 - (1 - beta)^k`.
+- Cada nodo que ya estaba en `E` pasa a `I` con `sigma`; cada uno que ya estaba en `I` pasa a `R` con `gamma`.
+- Las transiciones se calculan sobre una instantánea y se aplican al final: un `E` nuevo no progresa ese día y un `I` nuevo no expone a nadie hasta el siguiente.
+- `new_s_to_e` cuenta solo las transiciones `S → E` del paso; `cumulative` arranca en `E0 + I0` y suma esas transiciones. `R0` no suma.
 
 ## Comprobar
 
@@ -26,8 +63,8 @@ Cada día se calculan las transiciones desde los recuentos al inicio de ese día
 python -m unittest discover -s tests -v
 ```
 
-Si pytest ya está disponible, también funciona `python -m pytest`. No es una dependencia de ejecución.
+Con pytest instalado también funciona `python -m pytest`; no es una dependencia de ejecución. Las pruebas cubren conservación `S + E + I + R = N`, casos límite, reproducibilidad, independencia del orden de iteración y grafos explícitos.
 
-## Alcance y límites
+## Límites
 
-Esta versión **no implementa** la difusión nodo a nodo del plan, generación/carga de grafos (`--degree`, `--edges`), selección de IDs, intervención ni comparación de estrategias. Solo ofrece una trayectoria agregada sintética: no modela contactos individuales, heterogeneidad, reinfección ni datos del mundo real. Los parámetros son supuestos computacionales, no estimaciones sanitarias; los resultados no permiten predecir brotes ni aconsejar decisiones médicas.
+No modela síntomas, detección, heterogeneidad por edad, reinfección, intervenciones ni datos clínicos o del mundo real. La red es sintética o provista por el usuario; el resultado es una simulación computacional de difusión sobre grafos y no permite predecir brotes ni tomar decisiones sanitarias.
