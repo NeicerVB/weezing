@@ -2,7 +2,7 @@ flowchart LR
     CSV[CSV local agregado de Manta] -->|export-data.py| JSON[manta.json público]
     SRC[Código JS y Three.js] --> BUILD[Vite build]
     JSON --> BUILD
-    BUILD -->|AWS CLI autenticado| S3[(S3 privado us-east-1)]
+    BUILD -->|AWS CLI autenticado| S3[(S3 privado us-east-2)]
     S3 -->|Origin Access Control| CF[CloudFront público HTTPS]
     CF --> B[Navegador del usuario]
     B --> W[Web Worker local: simulaciones Monte Carlo]

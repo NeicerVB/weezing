@@ -1,6 +1,6 @@
 # Declaración de costos
 
-Estimación de infraestructura propuesta, USD, revisada el 27 de octubre de 2026. Región de origen `us-east-1`, CloudFront global con `PriceClass_100`. No se incluye dominio propio, impuestos ni servicios ajenos a esta pila. Las simulaciones se calculan en el navegador; no consumen Lambda, Fargate, Batch, Bedrock ni SageMaker.
+Estimación inicial de referencia en USD, revisada el 27 de octubre de 2026. La tabla se calculó para `us-east-1`; Idea Launchpad confirmó después que el proyecto debe desplegarse en **us-east-2**. Confirmar las tarifas de S3 en esa región antes de cerrar el presupuesto final. CloudFront global con `PriceClass_100`. No se incluye dominio propio, impuestos ni servicios ajenos a esta pila. Las simulaciones se calculan en el navegador; no consumen Lambda, Fargate, Batch, Bedrock ni SageMaker.
 
 ## Cálculo mensual de referencia
 

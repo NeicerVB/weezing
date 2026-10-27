@@ -79,7 +79,7 @@ slide(5, "Arquitectura y costos", "Interactividad sin servidores permanentes.", 
     "Resultados descargables como JSON con semilla y configuración.",
     "Estimación bruta de referencia: USD 0.23023/mes, antes de franquicias.",
     "Budget real: USD 5/mes; la verificación del destinatario está pendiente.",
-    "Despliegue AWS pendiente: CloudFormation bloqueado por SCP del evento.",
+    "Plantilla validada en us-east-2; publicación y URL AWS pendientes.",
 ])
 c.showPage()
 slide(6, "Límites y siguiente paso", "Explicable. Medible. Reproducible.", [

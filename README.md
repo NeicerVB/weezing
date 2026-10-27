@@ -72,16 +72,16 @@ S3 privado almacena el build y los datos agregados; CloudFront entrega la aplica
 
 ```powershell
 aws login --profile manta
-# Elegir us-east-1 cuando solicite región.
+# El proyecto Idea Launchpad usa us-east-2.
 aws sts get-caller-identity --profile manta
-powershell -ExecutionPolicy Bypass -File .\infra\deploy.ps1 -Profile manta -Region us-east-1
+powershell -ExecutionPolicy Bypass -File .\infra\deploy.ps1 -Profile manta -Region us-east-2
 ```
 
 Requiere permisos en CloudFormation, S3 y CloudFront para los recursos de la plantilla. El script valida identidad, ejecuta pruebas y build, despliega y devuelve la URL. No modifica IAM ni crea claves. Si el usuario utiliza IAM Identity Center, seguir su flujo `aws configure sso` / `aws sso login` en lugar de `aws login`.
 
 En Windows, detener primero el servidor de desarrollo con Ctrl+C antes del despliegue: `npm ci` reinstala dependencias y no puede reemplazar módulos nativos que Vite tenga abiertos.
 
-**URL pública AWS: pendiente.** La sesión `manta` está autenticada, pero la organización denegó `cloudformation:ValidateTemplate` mediante una SCP al intentar desplegar en `us-east-1`. No se crearon recursos. Confirmar con la organización la región y el método permitidos. Después del despliegue, incorporar la URL real, probarla desde una ventana privada y mantener la pila activa hasta el pitch. No basta con mostrar localhost. La plantilla retiene el bucket si se elimina la pila para evitar borrar contenido accidentalmente; limpiar recursos después del evento requiere una acción deliberada del equipo.
+**URL pública AWS: pendiente.** La sesión `manta` está autenticada. Idea Launchpad confirmó la región `us-east-2`, donde la validación CloudFormation terminó correctamente. El rechazo anterior ocurrió en `us-east-1`; no se modificaron las políticas administradas ni se crearon recursos. Ver [configuración de Agent Toolkit](docs/aws-toolkit.md). Después del despliegue, incorporar la URL real, probarla desde una ventana privada y mantener la pila activa hasta el pitch. La plantilla retiene el bucket si se elimina la pila para evitar borrar contenido accidentalmente.
 
 ## Costos y AWS Budget
 
@@ -97,7 +97,7 @@ El remoto configurado es `https://github.com/NeicerVB/weezing`; verificar que se
 - Historial: conservar commits reales de desarrollo; no reescribir fechas ni fabricar trabajo anterior.
 - Arquitectura: SVG y fuente Mermaid incluidos.
 - Costos: estimación y observación preliminar incluidas; cerrar importe real al final del evento.
-- AWS: plantilla y script incluidos; URL pública pendiente de resolver la restricción SCP y desplegar.
+- AWS: Agent Toolkit configurado y plantilla validada en us-east-2; despliegue y URL pública pendientes.
 - Budget: configuración observada; verificar destinatario e incorporar captura real.
 - Pitch: [presentación PDF de seis diapositivas](docs/pitch.pdf), [guion de cinco minutos](docs/pitch.md) y [generador editable](scripts/build-pitch.py). Revisar identidad del equipo, estado AWS y cifras finales antes de entregar. Regenerar con `python scripts/build-pitch.py` (requiere `pip install reportlab`).
 - Video: opcional, pendiente si el equipo decide grabarlo.

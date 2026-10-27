@@ -1,6 +1,6 @@
 param(
     [string]$Profile = 'manta',
-    [string]$Region = 'us-east-1',
+    [string]$Region = 'us-east-2',
     [string]$StackName = 'manta-outbreak-lab'
 )
 $ErrorActionPreference = 'Stop'
