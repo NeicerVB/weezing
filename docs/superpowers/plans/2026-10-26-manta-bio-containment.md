@@ -6,13 +6,13 @@
 
 **Architecture:** Vectorized discrete-time stochastic SEIR meta-population engine across 7 urban sectors of Manta coupled by an inter-sector mobility matrix, evaluated under 3 allocation strategies (No Intervention, Cantonal Uniform, Dynamic Risk-Weighted), aggregated across 50-100 Monte Carlo runs and presented via a Streamlit tactical dashboard containerized for AWS App Runner.
 
-**Tech Stack:** Python 3.11+, Conda (`env_spookython`), NumPy, SciPy, Pandas, Plotly, Streamlit, Pytest, Docker, AWS App Runner.
+**Tech Stack:** Python 3.12, Conda (`env_spookython`), NumPy, SciPy, Pandas, Plotly, Streamlit, Pytest, Docker, AWS App Runner.
 
 **Spec:** [`docs/superpowers/specs/2026-10-26-manta-bio-containment-design.md`](file:///home/neicervb/Documentos/Proyectos-personales/Spookython/docs/superpowers/specs/2026-10-26-manta-bio-containment-design.md)
 
 ## Global Constraints
 - Target population: 220,000 real Manta citizens across 7 sectors (Tarqui, Eloy Alfaro, Los Esteros, Manta Centro, Murciélago, Barbasquillo, San Mateo).
-- Local Development Environment: Conda environment (`env_spookython`, Python 3.11) with pinned dependencies in `environment.yml` and `requirements.txt`.
+- Local Development Environment: Conda environment (`env_spookython`, Python 3.12) with pinned dependencies in `environment.yml` and `requirements.txt`.
 - Quality Verification: Manual execution of `pytest` locally before `git push origin main` (no GitHub Actions CI pipeline).
 - Cloud Infrastructure: Pure monolith on AWS App Runner (1 vCPU, 2 GB RAM) executing Streamlit + NumPy simulation 100% in-memory without external database or AI API calls.
 - Continuous Deployment (CD): Direct GitHub connection from AWS App Runner to `https://github.com/NeicerVB/weezing.git` (`main` branch) using `apprunner.yaml` and `Dockerfile`.
@@ -50,7 +50,7 @@
 
 - [ ] **Step 0: Create `environment.yml` and `requirements.txt`**
 
-Specify `env_spookython` with Python 3.11 and locked dependencies: `numpy`, `scipy`, `pandas`, `plotly`, `streamlit`, `pytest`.
+Specify `env_spookython` with Python 3.12 and locked dependencies: `numpy`, `scipy`, `pandas`, `plotly`, `streamlit`, `pytest`.
 
 - [ ] **Step 1: Write failing test in `tests/test_sectors.py`**
 
@@ -426,7 +426,7 @@ git commit -m "feat(ui): implement Streamlit tactical dashboard with Brote Sorpr
 
 - [ ] **Step 1: Write `Dockerfile`, `.dockerignore`, and `apprunner.yaml`**
 
-Multi-stage lightweight Dockerfile based on `python:3.11-slim`, non-root user, exposing 8501, running `streamlit run src/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true`. Add `apprunner.yaml` configured for version 1.0 runtime with start command.
+Multi-stage lightweight Dockerfile based on `python:3.12-slim`, non-root user, exposing 8501, running `streamlit run src/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true`. Add `apprunner.yaml` configured for version 1.0 runtime with start command.
 
 - [ ] **Step 2: Verify Docker container build locally**
 

@@ -73,7 +73,7 @@ Para garantizar el éxito en los 5 minutos de la evaluación en vivo:
 - **Tiempo límite:** Entrega en plataforma miércoles 28 de octubre a las 10:00 AM (Ecuador). Ventana de trabajo efectiva < 44 horas.
 - **Equipo:** 3 desarrolladores (Neicer Vásquez, Alex Triviño, Josué Palma).
 - **Entorno Local Estandarizado:** 
-  - Conda dedicado: `env_spookython` con Python 3.11.
+  - Conda dedicado: `env_spookython` con Python 3.12.
   - Reproducibilidad local gestionada mediante `environment.yml` y `requirements.txt`.
   - Validación local manual con `pytest` antes de realizar `git push origin main` (sin flujos automáticos de CI / GitHub Actions).
 - **Infraestructura Cloud (AWS):** 
@@ -143,7 +143,7 @@ Para garantizar el éxito en los 5 minutos de la evaluación en vivo:
    - Pestaña 4: "Informe Ejecutivo para el COE Cantonal" generado mediante motor de plantillas dinámico y determinista en Python, traduciendo los resultados epidemiológicos a lenguaje de toma de decisiones públicas sin costo ni dependencia de APIs externas.
 
 6. **Infraestructura y Despliegue AWS (`Dockerfile`, `apprunner.yaml`, `docs/arquitectura.png`, `docs/costos.md`):**
-   - Contenedor Docker multi-stage optimizado (`python:3.11-slim`, usuario no-root, exponiendo puerto 8501).
+   - Contenedor Docker multi-stage optimizado (`python:3.12-slim`, usuario no-root, exponiendo puerto 8501).
    - Archivo de configuración `apprunner.yaml` para despliegue automatizado directo desde el repositorio GitHub `NeicerVB/weezing` sin necesidad de construir o subir imágenes manualmente con AWS CLI.
    - Dimensionamiento: 1 vCPU, 2 GB RAM (garantiza ejecución instantánea de Monte Carlo).
    - Observabilidad mediante CloudWatch Logs y Métricas integradas.
