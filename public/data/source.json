@@ -1,0 +1,8 @@
+{
+  "source": "Extración de datos/Extracción de datos_2/casos_diarios_manta.csv",
+  "sha256": "8ef7d917f5a1429cea327e3001b4d389ccf187b9c5a6d5357716e15039956581",
+  "rows": 1064,
+  "first": "2020-01-04",
+  "last": "2022-12-02",
+  "note": "Extracto local del proyecto; revisar parseo de fechas del extractor antes de presentar como serie epidemiológica validada."
+}
