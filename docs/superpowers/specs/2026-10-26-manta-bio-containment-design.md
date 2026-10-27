@@ -69,14 +69,26 @@ Para garantizar el éxito en los 5 minutos de la evaluación en vivo:
 
 ---
 
-## 3. Restricciones del Proyecto
+## 3. Restricciones del Proyecto y Entorno de Desarrollo
 - **Tiempo límite:** Entrega en plataforma miércoles 28 de octubre a las 10:00 AM (Ecuador). Ventana de trabajo efectiva < 44 horas.
-- **Equipo:** 3 desarrolladores con conocimientos intermedios de Python.
-- **Infraestructura Cloud:** Cuenta de AWS activa, región `us-east-1`, uso de AWS App Runner y ECR.
-- **Seguridad:** Cero secretos, tokens o credenciales en el repositorio Git.
+- **Equipo:** 3 desarrolladores (Neicer Vásquez, Alex Triviño, Josué Palma).
+- **Entorno Local Estandarizado:** 
+  - Conda dedicado: `env_spookython` con Python 3.11.
+  - Reproducibilidad local gestionada mediante `environment.yml` y `requirements.txt`.
+  - Validación local manual con `pytest` antes de realizar `git push origin main` (sin flujos automáticos de CI / GitHub Actions).
+- **Infraestructura Cloud (AWS):** 
+  - Cuenta de AWS propia activa, región `us-east-1`.
+  - **Arquitectura Monolítica Pura:** Un único contenedor Docker desplegado en **AWS App Runner** que encapsula tanto el servidor web (Streamlit) como el motor de simulación matemática (NumPy/SciPy) ejecutándose 100% en memoria.
+  - Cero dependencias de otros servicios de backend (sin bases de datos RDS/DynamoDB, sin colas SQS, sin funciones Lambda, sin llamadas a Bedrock ni APIs externas de IA).
+  - Observabilidad mediante logs de aplicación y métricas nativas de **Amazon CloudWatch** (provistas automáticamente por App Runner).
+  - Control de costos mediante **AWS Budget** con alerta por correo electrónico configurada a un umbral de \$5.00 USD.
+- **Flujo de Despliegue Continuo (CD):**
+  - Conexión directa y continua entre el servicio de **AWS App Runner** y el repositorio de GitHub `https://github.com/NeicerVB/weezing.git` en la rama `main`.
+  - Cada `git push origin main` desencadena automáticamente la compilación del `Dockerfile` (o configuración en `apprunner.yaml`) y el despliegue de una nueva versión accesible por URL pública HTTPS sin intervención manual ni uso de AWS CLI / ECR en local.
+- **Seguridad:** Cero secretos, tokens, credenciales o llaves AWS en el repositorio Git.
 - **Prueba de Fuego del Jurado:**
   - Demostración en vivo con semilla elegida por el jurado.
-  - "Brote Sorpresa": cambio drástico de condiciones en vivo con 5 minutos de tiempo de reacción.
+  - "Brote Sorpresa": adaptación a cambios extremos de condiciones en vivo en menos de 5 minutos mediante controles reactivos en la interfaz y botones de preset instantáneos.
 
 ---
 
@@ -123,16 +135,18 @@ Para garantizar el éxito en los 5 minutos de la evaluación en vivo:
 
 5. **Interfaz de Usuario Web (`src/app.py`):**
    - Desarrollada con **Streamlit** y gráficos vectoriales interactivos con **Plotly**.
-   - Barra lateral con sliders reactivos para todos los parámetros (tasa de infección, días de incubación, dosis diarias, punto de inicio del brote, semilla).
-   - Botón directo **"🎃 Modo Brote Sorpresa"** con presets rápidos (ej. Doble contagio, Foco en Mercado de Tarqui, Reducción de vacunas al 50%) para ajustar todo en 1 clic durante la evaluación del jurado.
-   - Pestaña de visualización de curvas temporales con bandas de incertidumbre.
-   - Pestaña de mapa espacial de Manta con coropletas de calor.
-   - Pestaña de "Informe Ejecutivo para el COE Cantonal" con redacción automática en lenguaje accesible para toma de decisiones.
+   - Barra lateral con sliders reactivos para todos los parámetros (tasa de infección $\beta$, días de incubación $1/\sigma$, periodo infeccioso $1/\gamma$, dosis diarias $K$, tope acumulado $K_{max}$, efectividad $\eta$, sector inicial del brote y semilla estocástica).
+   - Botón directo **"🎃 Modo Brote Sorpresa"** con presets rápidos (ej. Doble contagio, Foco en Mercado de Tarqui, Reducción de vacunas al 50%, Aislamiento perimetral) para ajustar todo en 1 clic durante la evaluación del jurado.
+   - Pestaña 1: Visualización de curvas temporales comparativas (Sano, Zombie, Inmune) con bandas de incertidumbre (CI 95%) entre las 3 estrategias.
+   - Pestaña 2: Mapa territorial interactivo de Manta (`px.scatter_mapbox` con estilo libre `open-street-map`, sin necesidad de tokens ni costos) con animación temporal día a día del avance de la infección por parroquia (criterio Nivel Pro).
+   - Pestaña 3: Tablero de eficiencia táctica (KPIs: Vidas salvadas vs Línea Base 0, Vidas salvadas vs Línea Base 1, Eficacia por dosis, Pico de saturación hospitalaria).
+   - Pestaña 4: "Informe Ejecutivo para el COE Cantonal" generado mediante motor de plantillas dinámico y determinista en Python, traduciendo los resultados epidemiológicos a lenguaje de toma de decisiones públicas sin costo ni dependencia de APIs externas.
 
-6. **Infraestructura y Despliegue AWS (`Dockerfile`, `docs/arquitectura.png`, `docs/costos.md`):**
-   - Contenedor Docker optimizado (Python 3.11-slim, multi-stage, usuario no root).
-   - Repositorio ECR y servicio **AWS App Runner** con auto-escalado mínimo (1 instancia vCPU 1GB).
-   - Generación de diagrama de arquitectura formal (App Runner + ECR + CloudWatch + IAM).
+6. **Infraestructura y Despliegue AWS (`Dockerfile`, `apprunner.yaml`, `docs/arquitectura.png`, `docs/costos.md`):**
+   - Contenedor Docker multi-stage optimizado (`python:3.11-slim`, usuario no-root, exponiendo puerto 8501).
+   - Archivo de configuración `apprunner.yaml` para despliegue automatizado directo desde el repositorio GitHub `NeicerVB/weezing` sin necesidad de construir o subir imágenes manualmente con AWS CLI.
+   - Dimensionamiento: 1 vCPU, 2 GB RAM (garantiza ejecución instantánea de Monte Carlo).
+   - Observabilidad mediante CloudWatch Logs y Métricas integradas.
    - Configuración de alerta de AWS Budget (\$5.00 USD).
 
 ---
@@ -141,24 +155,22 @@ Para garantizar el éxito en los 5 minutos de la evaluación en vivo:
 
 ```text
 weezing/
-├── .github/
-│   └── workflows/
-│       └── deploy.yml          # CI/CD opcional para build y push a ECR / App Runner
 ├── configs/
 │   └── default_params.json     # Semilla y parámetros reproducibles por defecto
 ├── docs/
-│   ├── arquitectura.png        # Diagrama de arquitectura AWS
+│   ├── arquitectura.png        # Diagrama de arquitectura AWS (App Runner + GitHub + CloudWatch + Budget)
 │   ├── arquitectura.drawio     # Archivo fuente editable
 │   ├── budget.png              # Captura de pantalla de AWS Budget con alerta activa
 │   ├── costos.md               # Declaración de costos mensual y de evento
-│   └── superpowers/specs/      # Documentación de diseño
+│   └── superpowers/
+│       ├── specs/              # Documentación de diseño
+│       └── plans/              # Plan de implementación paso a paso
 ├── src/
 │   ├── __init__.py
 │   ├── app.py                  # Entrypoint de la aplicación Streamlit
 │   ├── data/
 │   │   ├── __init__.py
-│   │   ├── manta_sectors.py    # Datos poblacionales y matriz de movilidad
-│   │   └── geojson_manta.py    # Geometrías para el mapa de calor
+│   │   └── manta_sectors.py    # Datos demográficos de Manta y matriz de movilidad
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── seir_engine.py      # Ecuaciones SEIR meta-poblacionales estocásticas
@@ -166,11 +178,16 @@ weezing/
 │   │   └── monte_carlo.py      # Ejecución batch y cálculo de estadísticas
 │   └── utils/
 │       ├── __init__.py
-│       └── metrics.py          # Cálculo de vidas salvadas y KPIs comparativos
+│       └── metrics.py          # Cálculo de vidas salvadas, KPIs y generador de informe COE
 ├── tests/
-│   ├── test_simulation.py      # Pruebas unitarias de reproducibilidad y balance de población
-│   └── test_strategies.py      # Verificación de que la óptima supera al azar
+│   ├── test_sectors.py         # Validación demográfica y matriz de movilidad
+│   ├── test_simulation.py      # Pruebas de balance poblacional y reproducibilidad
+│   ├── test_strategies.py      # Verificación de que la óptima supera al azar
+│   ├── test_monte_carlo.py     # Pruebas de rendimiento Monte Carlo (< 2s) y métricas
+│   └── test_ui_smoke.py        # Smoke test de carga de configuración y app
 ├── Dockerfile                  # Contenedor listo para AWS App Runner
+├── apprunner.yaml              # Configuración de runtime y build para AWS App Runner
+├── environment.yml             # Especificación de entorno Conda (env_spookython)
 ├── requirements.txt            # Dependencias fijadas (Streamlit, Plotly, NumPy, SciPy, etc.)
 └── README.md                   # Documentación principal exigida por la rúbrica
 ```

@@ -6,12 +6,17 @@
 
 **Architecture:** Vectorized discrete-time stochastic SEIR meta-population engine across 7 urban sectors of Manta coupled by an inter-sector mobility matrix, evaluated under 3 allocation strategies (No Intervention, Cantonal Uniform, Dynamic Risk-Weighted), aggregated across 50-100 Monte Carlo runs and presented via a Streamlit tactical dashboard containerized for AWS App Runner.
 
-**Tech Stack:** Python 3.11+, NumPy, SciPy, Pandas, Plotly, Streamlit, Pytest, Docker, AWS App Runner.
+**Tech Stack:** Python 3.11+, Conda (`env_spookython`), NumPy, SciPy, Pandas, Plotly, Streamlit, Pytest, Docker, AWS App Runner.
 
 **Spec:** [`docs/superpowers/specs/2026-10-26-manta-bio-containment-design.md`](file:///home/neicervb/Documentos/Proyectos-personales/Spookython/docs/superpowers/specs/2026-10-26-manta-bio-containment-design.md)
 
 ## Global Constraints
 - Target population: 220,000 real Manta citizens across 7 sectors (Tarqui, Eloy Alfaro, Los Esteros, Manta Centro, Murciélago, Barbasquillo, San Mateo).
+- Local Development Environment: Conda environment (`env_spookython`, Python 3.11) with pinned dependencies in `environment.yml` and `requirements.txt`.
+- Quality Verification: Manual execution of `pytest` locally before `git push origin main` (no GitHub Actions CI pipeline).
+- Cloud Infrastructure: Pure monolith on AWS App Runner (1 vCPU, 2 GB RAM) executing Streamlit + NumPy simulation 100% in-memory without external database or AI API calls.
+- Continuous Deployment (CD): Direct GitHub connection from AWS App Runner to `https://github.com/NeicerVB/weezing.git` (`main` branch) using `apprunner.yaml` and `Dockerfile`.
+- Observabilidad y Costos: Amazon CloudWatch para logs y métricas; AWS Budget con alerta por correo (\$5.00 USD).
 - Simulation execution speed: < 2.0 seconds for 50 Monte Carlo runs on a single CPU core.
 - Mandatory comparison against two baselines: Baseline 0 (No Intervention) and Baseline 1 (Uniform Cantonal Allocation).
 - Deterministic reproducibility: exact same output given identical seed and parameters.
@@ -27,9 +32,11 @@
 
 ---
 
-### Task 1: Territorial Demographics & Mobility Model
+### Task 1: Environment Setup, Demographics & Mobility Model
 
 **Files:**
+- Create: `environment.yml`
+- Create: `requirements.txt`
 - Create: `src/data/__init__.py`
 - Create: `src/data/manta_sectors.py`
 - Test: `tests/test_sectors.py`
@@ -40,6 +47,10 @@
   - `SECTOR_POPULATIONS: dict[str, int]` (Sums to 220,000)
   - `SECTOR_COORDINATES: dict[str, tuple[float, float]]` (Lat, Lon for Manta centroids)
   - `get_mobility_matrix(quarantine_sector: str | None = None) -> np.ndarray` (Shape `(7, 7)`, row-normalized)
+
+- [ ] **Step 0: Create `environment.yml` and `requirements.txt`**
+
+Specify `env_spookython` with Python 3.11 and locked dependencies: `numpy`, `scipy`, `pandas`, `plotly`, `streamlit`, `pytest`.
 
 - [ ] **Step 1: Write failing test in `tests/test_sectors.py`**
 
@@ -90,7 +101,7 @@ Expected: PASS (3 tests)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/data/ tests/test_sectors.py
+git add src/data/ tests/test_sectors.py environment.yml requirements.txt
 git commit -m "feat(data): implement Manta urban sector demographics and mobility matrix"
 ```
 
@@ -318,7 +329,7 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'src.models.monte_carl
 
 - [ ] **Step 3: Implement `src/utils/metrics.py` and `src/models/monte_carlo.py`**
 
-Vectorize the Monte Carlo runs with pre-allocated NumPy arrays. Compute 2.5th and 97.5th percentiles for the 95% confidence intervals. Generate a crisp, professional markdown executive report for the COE Cantonal.
+Vectorize the Monte Carlo runs with pre-allocated NumPy arrays. Compute 2.5th and 97.5th percentiles for the 95% confidence intervals. Generate a crisp, professional markdown executive report for the COE Cantonal using dynamic, deterministic Python rule-based templates (zero API costs or external dependencies).
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -383,7 +394,7 @@ Build the Streamlit application:
    - *Cordón Sanitario (Aislamiento Barrial)*
 3. Main view with 4 tabs:
    - Tab 1: Curvas Epidemiológicas comparativas (Sanos, Zombies activos, Inmunizados) con bandas sombreadas CI 95%.
-   - Tab 2: Mapa Territorial de Manta (Plotly coroplético con dispersión de casos y vacunas por parroquia).
+   - Tab 2: Mapa Territorial Interactivo de Manta (`px.scatter_mapbox` con `open-street-map`, libre de tokens y offline-friendly) con slider animado de días 0 a 90 mostrando el avance de contagios por parroquia (Nivel Pro).
    - Tab 3: Panel de Eficiencia Táctica (KPIs de vidas salvadas y costo por vida protegida).
    - Tab 4: Informe Ejecutivo para el COE Cantonal con exportación a Markdown.
 
@@ -406,15 +417,16 @@ git commit -m "feat(ui): implement Streamlit tactical dashboard with Brote Sorpr
 **Files:**
 - Create: `Dockerfile`
 - Create: `.dockerignore`
+- Create: `apprunner.yaml`
 - Create: `docs/costos.md`
 - Create: `docs/arquitectura.drawio`
 - Create: `docs/arquitectura.png` (exported/rendered)
 - Modify: `README.md`
 - Test: Verify local Docker build and curl response
 
-- [ ] **Step 1: Write `Dockerfile` and `.dockerignore`**
+- [ ] **Step 1: Write `Dockerfile`, `.dockerignore`, and `apprunner.yaml`**
 
-Multi-stage lightweight Dockerfile based on `python:3.11-slim`, non-root user, exposing 8501, running `streamlit run src/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true`.
+Multi-stage lightweight Dockerfile based on `python:3.11-slim`, non-root user, exposing 8501, running `streamlit run src/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true`. Add `apprunner.yaml` configured for version 1.0 runtime with start command.
 
 - [ ] **Step 2: Verify Docker container build locally**
 
@@ -430,18 +442,18 @@ Document operating costs:
 
 - [ ] **Step 4: Create Architecture Diagram (`docs/arquitectura.drawio` & `.png`)**
 
-Diagram illustrating: User Web Browser $\rightarrow$ AWS App Runner (TLS/HTTPS) $\rightarrow$ Containerized Python App (Streamlit + NumPy Engine) $\rightarrow$ Amazon CloudWatch & AWS Budget alerts.
+Diagram illustrating: User Web Browser $\rightarrow$ AWS App Runner (TLS/HTTPS) $\leftarrow$ GitHub Repository (`NeicerVB/weezing` on `main`) $\rightarrow$ Amazon CloudWatch & AWS Budget alerts.
 
 - [ ] **Step 5: Complete `README.md`**
 
-Fill out all requirements from `entregables.md`: project summary, reproducible parameters, AWS deployment instructions, architecture link, cost summary, and design decisions.
+Fill out all requirements from `entregables.md`: project summary, reproducible parameters and seed, AWS App Runner deployment link and console connection guide, architecture diagram link, cost summary, and design decisions.
 
 - [ ] **Step 6: Run full test suite and commit**
 
 ```bash
 pytest
-git add Dockerfile .dockerignore docs/ README.md
-git commit -m "docs(infra): add Dockerfile, architecture diagrams, cost declaration, and README"
+git add Dockerfile .dockerignore apprunner.yaml docs/ README.md
+git commit -m "docs(infra): add Dockerfile, apprunner.yaml, architecture diagrams, cost declaration, and README"
 ```
 
 ---
