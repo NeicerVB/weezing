@@ -18,36 +18,74 @@ Herramienta de simulación computacional que modela la propagación de un patóg
 
 ## 1. Puesta en Marcha Rápida (Cómo encender el simulador)
 
-Para poder visualizar el simulador en el navegador o consumir su API, el servicio backend debe estar encendido y escuchando en el puerto 8000. Elige **una** de las dos opciones siguientes:
+Para poder visualizar el simulador en el navegador (`http://localhost:8000`) o consumir su API, primero debemos iniciar el servidor backend. Elige la opción adecuada para tu entorno:
 
 ### Opción A (Recomendada): Vía Docker
-*(No requiere configurar Python ni instalar dependencias en tu máquina; solo requiere tener Docker activo)*
+*(No requiere configurar Python ni entornos locales; solo requiere tener Docker en ejecución)*
 
 ```bash
 # 1. Construir la imagen del contenedor
 docker build -f infra/Dockerfile -t manta-sim .
 
-# 2. Iniciar el contenedor (escuchando en el puerto 8000)
+# 2. Iniciar el contenedor escuchando en el puerto 8000
 docker run --rm -p 8000:8000 manta-sim
 ```
 
-### Opción B: Vía Python local
-*(Requiere Python 3.12 instalado)*
+---
+
+### Opción B: Vía Python en Linux / macOS
+*(Requiere Python 3.12)*
 
 ```bash
-# 1. Crear y activar entorno virtual
-python -m venv .venv
-source .venv/bin/activate       # En Windows (PowerShell): .venv\Scripts\Activate.ps1
+# 1. Crear y activar el entorno virtual
+python3 -m venv .venv
+source .venv/bin/activate
 
-# 2. Instalar dependencias
-pip install -r requirements.txt
-pip install -e .
+# 2. Instalar dependencias del proyecto y pruebas
+python -m pip install -r requirements.txt
+python -m pip install -e ".[test]"
 
-# 3. Iniciar el servidor FastAPI
-uvicorn seir.app:app --host 0.0.0.0 --port 8000
+# 3. Iniciar el servidor FastAPI con Uvicorn
+python -m uvicorn seir.app:app --host 0.0.0.0 --port 8000
 ```
 
-> **Servicio activo:** Una vez ejecutada la Opción A o la Opción B, el servidor estará escuchando en `http://localhost:8000`. Mantén esta terminal abierta.
+---
+
+### Opción C: Vía Python en Windows (PowerShell)
+*(Requiere Python 3.12)*
+
+```powershell
+# 1. Crear y activar el entorno virtual
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+# 2. Instalar dependencias del proyecto y pruebas
+python -m pip install -r requirements.txt
+python -m pip install -e ".[test]"
+
+# 3. Iniciar el servidor FastAPI con Uvicorn
+python -m uvicorn seir.app:app --host 0.0.0.0 --port 8000
+```
+
+---
+
+### Opción D: Alternativa con Conda / Mamba
+*(Si utilizas Anaconda o Miniconda)*
+
+```bash
+# 1. Crear y activar entorno Conda con Python 3.12
+conda create -n manta python=3.12 -y
+conda activate manta
+
+# 2. Instalar dependencias del proyecto y pruebas
+python -m pip install -r requirements.txt
+python -m pip install -e ".[test]"
+
+# 3. Iniciar el servidor
+python -m uvicorn seir.app:app --host 0.0.0.0 --port 8000
+```
+
+> **Servicio activo:** Cuando la terminal indique `Uvicorn running on http://0.0.0.0:8000`, el servidor estará listo. Mantén esa terminal abierta y continúa con el paso 2.
 
 ---
 
@@ -223,11 +261,11 @@ En cumplimiento con el punto 8 de los requisitos del reto, se detalla el origen 
 ## 9. Pruebas Automatizadas y Limitaciones Conocidas
 
 ### Batería de Pruebas Automatizadas
-> **Prerrequisito:** Requiere tener el entorno virtual de Python activado con las dependencias de prueba (`pip install -e ".[test]"`) y [Node.js](https://nodejs.org/) v18+ instalado.
+> **Prerrequisito:** Requiere tener el entorno virtual de Python activado con las dependencias de prueba (`python -m pip install -e ".[test]"`) y [Node.js](https://nodejs.org/) v18+ instalado.
 
 ```bash
 # 1. Pruebas unitarias y de integración de Python (67 pruebas)
-pytest -q
+python -m pytest -q
 
 # 2. Pruebas unitarias de interfaz y lógica frontend (16 pruebas)
 node --test tests/frontend.test.cjs
