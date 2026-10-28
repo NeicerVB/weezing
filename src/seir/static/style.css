@@ -28,6 +28,8 @@ label { cursor: pointer; }
 input, select, button { max-width: 100%; min-height: 2.5rem; font: inherit; }
 input[type="number"], select { width: 100%; padding: .3rem; color: var(--text-primary); background: var(--bg-primary); border: 1px solid #858da4; border-radius: .25rem; }
 input[type="range"] { width: 100%; accent-color: var(--accent-spooky); }
+.slider { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+.slider output { min-width: 2.5rem; text-align: right; }
 input[type="checkbox"] { width: 1.4rem; height: 1.4rem; accent-color: var(--accent-spooky); }
 button { padding: .45rem 1rem; color: #18110a; background: var(--accent-spooky); border: 2px solid transparent; border-radius: .3rem; font-weight: 700; cursor: pointer; }
 button:disabled { opacity: .55; cursor: not-allowed; }

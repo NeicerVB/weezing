@@ -22,7 +22,7 @@
           <label for="days">Días</label><input id="days" type="number" min="1" max="90" step="1" value="60">
           <label for="seed">Semilla</label><input id="seed" type="number" step="1" value="42">
           <label for="degree">Grado medio</label><input id="degree" type="number" min="0" max="100" step="1" value="8">
-          <label for="beta">Contagio β</label><input id="beta" type="range" min="0" max="1" step="0.001" value="0.03">
+          <label for="beta">Contagio β</label><div class="slider"><input id="beta" type="range" min="0" max="1" step="0.001" value="0.03"><output id="beta-value" for="beta">0.03</output></div>
           <label for="sigma">Incubación σ</label><input id="sigma" type="number" min="0" max="1" step="0.01" value="0.2">
           <label for="gamma">Recuperación γ</label><input id="gamma" type="number" min="0" max="1" step="0.01" value="0.1">
         </fieldset>
@@ -31,7 +31,7 @@
           <label for="mode">Modo de cuota</label><select id="mode"><option value="dynamic">Dinámico</option><option value="static">Estático</option></select>
           <label for="quota">Cuota diaria K</label><input id="quota" type="number" min="0" max="2000" step="1" value="30">
           <label for="k_max">Tope acumulado K máx.</label><input id="k_max" type="number" min="0" max="2000" step="1" value="400">
-          <label for="efficacy">Eficacia vacunal η</label><input id="efficacy" type="range" min="0" max="1" step="0.01" value="0.8">
+          <label for="efficacy">Eficacia vacunal η</label><div class="slider"><input id="efficacy" type="range" min="0" max="1" step="0.01" value="0.8"><output id="efficacy-value" for="efficacy">0.8</output></div>
           <label for="include_frames">Animar la red</label><input id="include_frames" type="checkbox">
         </fieldset>
         <fieldset>
