@@ -1,0 +1,32 @@
+[
+  {
+    "base": {
+      "n": 100,
+      "days": 10,
+      "initial": {"tarqui": 3},
+      "intervention": {"quota": 10},
+      "volunteers": {}
+    },
+    "seed": 42
+  },
+  {
+    "base": {
+      "n": 100,
+      "days": 10,
+      "initial": {"tarqui": 3},
+      "intervention": {"quota": 10},
+      "volunteers": {}
+    },
+    "seed": 43
+  },
+  {
+    "base": {
+      "n": 100,
+      "days": 10,
+      "initial": {"tarqui": 3},
+      "intervention": {"quota": 10},
+      "volunteers": {}
+    },
+    "seed": 44
+  }
+]

@@ -187,6 +187,39 @@ async def simulate(body: SimulateRequest, request: Request):
 @app.post("/api/batch")
 async def batch(body: BatchRequest, request: Request):
     payload = body.base.model_dump()
+
+    if __import__("os").getenv("MONTECARLO_AWS", "false").lower() == "true":
+        import boto3
+        import json
+        import logging
+
+        jobs = [
+            {
+                "base": payload,
+                "seed": body.base.seed + index,
+                "include_series": body.include_series
+            }
+            for index in range(body.replicas)
+        ]
+
+        try:
+            def run_cloud():
+                client = boto3.client("stepfunctions", region_name="us-east-2")
+                response = client.start_sync_execution(
+                    stateMachineArn="arn:aws:states:us-east-2:887324469817:stateMachine:Spookython-Simulation-Express",
+                    input=json.dumps(jobs)
+                )
+                if response.get("status") != "SUCCEEDED":
+                    raise RuntimeError(
+                        f"Step Functions: {response.get('error')} {response.get('cause')}"
+                    )
+                return json.loads(response["output"])
+
+            return await asyncio.to_thread(run_cloud)
+
+        except Exception:
+            logging.exception("Fallo Monte Carlo AWS; usando procesamiento local")
+
     results = await execute(request, [
         (batch_replica, {"base": payload | {"seed": body.base.seed + index}, "include_series": body.include_series})
         for index in range(body.replicas)
