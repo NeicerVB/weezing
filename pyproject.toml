@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "weezing-seir"
+version = "0.3.0"
+description = "Autómata SEIR sobre grafos territoriales de Manta, simulación epidemiológica y estrategias de contención"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.9.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.3.0",
+]
+
+[project.scripts]
+weezing-seir = "seir.cli:main"
+weezing-web = "seir.web:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["seir*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
