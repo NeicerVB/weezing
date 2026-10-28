@@ -1,0 +1,37 @@
+{
+  "container_cpu": 0.25,
+  "memory_mib": 512,
+  "requests": 20,
+  "cold_seconds": 1.8671,
+  "p95_seconds": 1.2764,
+  "mean_seconds": 0.9652,
+  "simulate_transfer_bytes": 2740,
+  "animation_transfer_bytes": 28698,
+  "batch_transfer_bytes": 741,
+  "batch_small_seconds": 0.1779,
+  "metrics": {
+    "proposed": {
+      "doses_spent": 400,
+      "cumulative_infections": 33,
+      "peak_i": 10,
+      "peak_day": 0,
+      "avoided_infections": 274,
+      "active_volunteers": 1,
+      "volunteer_reinfections": 2
+    },
+    "random": {
+      "doses_spent": 400,
+      "cumulative_infections": 146,
+      "peak_i": 30,
+      "peak_day": 45,
+      "avoided_infections": 161
+    },
+    "none": {
+      "doses_spent": 0,
+      "cumulative_infections": 307,
+      "peak_i": 78,
+      "peak_day": 60,
+      "avoided_infections": 0
+    }
+  }
+}

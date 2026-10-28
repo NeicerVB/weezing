@@ -2,7 +2,7 @@
 **Responsable:** Josué Palma  
 **Área:** Servidor FastAPI, Despliegue en AWS (Amazon ECS Express Mode), Seguridad, Costos y Entregables Oficiales  
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Implementar el servidor web FastAPI con el contrato de API REST congelado (Anexo A) y guardas de seguridad/concurrencia, empaquetar el contenedor Docker multi-stage optimizado en Python 3.12 (puerto 8000), configurar el despliegue en Amazon ECS Express Mode en `us-east-2`, gestionar la alerta del AWS Budget (\$5 USD), y redactar los entregables oficiales de la Spookython (`README.md`, `docs/costos.md`, `docs/budget.png`, y checklist de aceptación).
 
@@ -47,24 +47,24 @@
   - `POST /api/batch` $\to$ `200` JSON (Contrato Anexo A con estadísticas agregadas)
   - Respuestas controladas de error: `HTTP 400` para entradas inválidas, `HTTP 429` en sobrecarga.
 
-- [ ] **Paso 1: Escribir pruebas de integración en `tests/test_api_smoke.py`**
+- [x] **Paso 1: Escribir pruebas de integración en `tests/test_api_smoke.py`**
   Probar `GET /health` (retorna 200), `POST /api/simulate` con payload estándar del Anexo A, validación de límites ($N > 2000$ retorna 400), y semáforo de concurrencia (exceso retorna 429 con `Retry-After`).
 
-- [ ] **Paso 2: Ejecutar pruebas para verificar que fallen**
+- [x] **Paso 2: Ejecutar pruebas para verificar que fallen**
   Ejecutar: `pytest tests/test_api_smoke.py -v`  
   Salida esperada: FAIL.
 
-- [ ] **Paso 3: Implementar schemas en `src/seir/config.py` y servidor en `src/seir/app.py`**
+- [x] **Paso 3: Implementar schemas en `src/seir/config.py` y servidor en `src/seir/app.py`**
   - Definir modelos Pydantic (`SimulateRequest`, `BatchRequest`, `InterventionConfig`, `VolunteersConfig`).
   - Implementar endpoints `/health`, `/api/simulate` y `/api/batch`.
   - Configurar `asyncio.Semaphore(2)` como middleware/dependencia para limitar a un máximo de 2 simulaciones pesadas concurrentes.
   - Montar `src/seir/static/` para servir el frontend de Dev 2.
 
-- [ ] **Paso 4: Ejecutar pruebas para verificar que pasen**
+- [x] **Paso 4: Ejecutar pruebas para verificar que pasen**
   Ejecutar: `pytest tests/test_api_smoke.py -v`  
   Salida esperada: PASS.
 
-- [ ] **Paso 5: Commit**
+- [x] **Paso 5: Commit**
   ```bash
   git add src/seir/app.py src/seir/config.py tests/test_api_smoke.py
   git commit -m "feat(dev3): implement FastAPI server matching frozen contract with Pydantic and rate limiting"
@@ -84,7 +84,7 @@
 - Consumes: Código fuente en `src/seir/` y `requirements.txt`.
 - Produces: Contenedor listo para producción, receta de despliegue en `us-east-2` y artefactos cloud para Nivel Pro.
 
-- [ ] **Paso 1: Crear `infra/Dockerfile` multi-stage optimizado**
+- [x] **Paso 1: Crear `infra/Dockerfile` multi-stage optimizado**
   ```dockerfile
   FROM python:3.12-slim as builder
   WORKDIR /app
@@ -100,7 +100,7 @@
   CMD ["uvicorn", "src.seir.app:app", "--host", "0.0.0.0", "--port", "8000"]
   ```
 
-- [ ] **Paso 2: Probar la compilación y ejecución local del contenedor**
+- [x] **Paso 2: Probar la compilación y ejecución local del contenedor**
   Construir la imagen y probar el endpoint de salud:
   ```bash
   docker build -f infra/Dockerfile -t manta-sim:test .
@@ -108,7 +108,7 @@
   ```
   Salida esperada: HTTP 200 `{"status": "healthy"}`.
 
-- [ ] **Paso 3: Definir configuración de despliegue en ECS Express Mode (`infra/ecs_service.json`)**
+- [x] **Paso 3: Definir configuración de despliegue en ECS Express Mode (`infra/ecs_service.json`)**
   Configurar el comando de despliegue para `us-east-2`:
   ```bash
   aws ecs create-express-gateway-service \
@@ -122,10 +122,10 @@
   aws ecs delete-express-gateway-service --region us-east-2 --service-name manta-containment-simulator
   ```
 
-- [ ] **Paso 4: Crear archivos de Step Functions / Lambda para Nivel Pro**
+- [x] **Paso 4: Crear archivos de Step Functions / Lambda para Nivel Pro**
   Escribir `infra/lambda_worker.py` (que invoca a `run_paired_simulation`) y `infra/step_function_def.json` (flujo Express con `Inline Map` sincrónico) listos para desplegar como complemento de puntos extra.
 
-- [ ] **Paso 5: Commit**
+- [x] **Paso 5: Commit**
   ```bash
   git add infra/
   git commit -m "feat(dev3): create multi-stage Dockerfile, ECS Express config in us-east-2, and Step Functions spec"
@@ -145,13 +145,13 @@
 - Consumes: URL desplegada en AWS, mediciones de latencia, captura de consola de AWS y resultados del simulador.
 - Produces: Repositorio completamente documentado listo para entregar en la plataforma de la Spookython.
 
-- [ ] **Paso 1: Generar `configs/default_params.json`**
+- [x] **Paso 1: Generar `configs/default_params.json`**
   Fijar la semilla oficial de evaluación (semilla 42) y los parámetros calibrados por defecto ($N=1000, T=60, \beta=0.03, \sigma=0.2, \gamma=0.1, K=30, K_{\max}=400, \text{initial}: \{\text{"tarqui"}: 10\}$).
 
-- [ ] **Paso 2: Redactar `docs/costos.md`**
+- [x] **Paso 2: Redactar `docs/costos.md`**
   Detallar el costo mensual continuo (~25–30 USD/mes) versus el costo real del evento (~1 USD/día para 1 tarea de 256 CPU / 512 MiB Fargate), justificando matemáticamente que el evento se mantiene estrictamente por debajo del umbral de \$5.00 USD fijado en la alerta.
 
-- [ ] **Paso 3: Colocar la captura de AWS Budget en `docs/budget.png`**
+- [x] **Paso 3: Colocar la captura de AWS Budget en `docs/budget.png`**
   Asegurar que la imagen muestre la alerta activa de \$5.00 USD en la región `us-east-2`.
 
 - [ ] **Paso 4: Redactar el `README.md` integral exigido por la rúbrica**
@@ -170,3 +170,8 @@
   git add configs/default_params.json docs/costos.md docs/budget.png README.md
   git commit -m "docs(dev3): finalize official competition README, cost breakdown, and default configuration"
   ```
+
+
+## Estado de ejecuci?n (2026-10-28)
+
+Tareas 1 y 2 verificadas localmente y en Docker. La configuraci?n cloud es una plantilla, no un despliegue. Tarea 3 parcial: captura real del Budget incluida, pero correo a?n sin verificar y URL ECS pendiente. V?ase [verificacion.md](../../verificacion.md) y [dev3-progress.md](dev3-progress.md).

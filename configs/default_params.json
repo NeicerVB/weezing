@@ -1,0 +1,14 @@
+{
+  "n": 1000,
+  "days": 60,
+  "seed": 42,
+  "beta": 0.03,
+  "sigma": 0.2,
+  "gamma": 0.1,
+  "degree": 8,
+  "initial": {"tarqui": 10},
+  "initial_ids": null,
+  "intervention": {"mode": "dynamic", "quota": 30, "k_max": 400, "efficacy": 0.8, "delay": 0},
+  "volunteers": {"enlist": 0.12, "reinfection": 0.04},
+  "include_frames": false
+}
