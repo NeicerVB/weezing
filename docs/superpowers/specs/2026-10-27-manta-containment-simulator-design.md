@@ -42,7 +42,8 @@ El diseño está optimizado para responder de manera determinista e instantánea
    - Desarrollado en Vanilla JS + SVG nativo servido por FastAPI, con visualización 2D interactiva de la red de Manta animada día a día.
    - Controles interactivos directos (sliders y campos numéricos) para responder en caliente al **"🎃 Brote Sorpresa"** (duplicar contagio, recortar vacunas, cambiar eficacias o reubicar focos en vivo sin depender de botones predefinidos).
    - Generador automático del **"Informe Ejecutivo para el Alcalde / COE Cantonal"**.
-7. **Rigor y Reproducibilidad Matemática:**
+7. **Rigor, Reproducibilidad y Métricas Epidemiológicas:**
+   - **Número Básico de Reproducción ($R_0$) Explícito:** Tarjeta/métrica derivada destacada en el dashboard que indica cuántas personas nuevas contagia, en promedio, un solo individuo infectado en una población totalmente susceptible ($R_0 \approx \beta \cdot \langle k \rangle / \gamma$). Permite a la autoridad evaluar de inmediato el potencial de expansión del brote ($R_0 > 1$).
    - Horizonte temporal estándar: $T = 60$ días.
    - **Infección Inicial Multi-Sectorial:** Capacidad de configurar y distribuir los infectados iniciales ($I_0$) en uno o varios sectores simultáneamente (ej. brote simultáneo en Tarqui, Los Esteros o Manta Centro).
    - Determinismo estricto fijado por semilla (`seed`).
@@ -117,7 +118,11 @@ El diseño está optimizado para responder de manera determinista e instantánea
   - *Reclutamiento de Brigadistas ($R \to \text{Voluntario}$):* Al momento de transicionar a $R$, sorteo con probabilidad $p_{\text{vol}} \in [0.10, 0.15]$.
   - *Riesgo Ocupacional de Brigadista:* Un voluntario activo en un sector con infectados sufre un riesgo de reinfección diaria:
     $$P(\text{Voluntario} \to E) = p_{\text{reinf}} \quad (\text{rango } 3\% - 5\%)$$
-- **Invariante y Determinismo:**
+- **Invariante, Métricas Epidemiológicas y Determinismo:**
+  - *Número Básico de Reproducción ($R_0$):* Calculado analíticamente a partir de los parámetros de la red y del patógeno:
+    $$R_0 = \beta \cdot \langle k \rangle \cdot \frac{1}{\gamma}$$
+    donde $\beta$ es la probabilidad diaria de transmisión por enlace activo, $\langle k \rangle$ es el grado promedio de la red de Manta y $1/\gamma$ es la duración media del periodo infeccioso. Informa de manera inequívoca cuántos contagios secundarios genera un caso primario en población virgen.
+  - *Número Efectivo de Reproducción ($R_t$):* Monitoreado día a día como $R_t = R_0 \cdot \frac{S_t}{N}$, reflejando la pérdida de fuerza epidémica a medida que la intervención vacunal y la recuperación reducen la fracción susceptible.
   - Transiciones calculadas en snapshot sincrónico al inicio del día y aplicadas en bloque al finalizar el paso.
   - Invariante estricto verificado en cada tick: $|S| + |E| + |I| + |R| = N$.
   - Generación pseudo-aleatoria libre de colisiones mediante hash determinista: `event_uniform(seed, day, node_id, event_tag)`.
@@ -164,7 +169,11 @@ El diseño está optimizado para responder de manera determinista e instantánea
   1. *Panel de Parámetros y Ajuste para Brote Sorpresa:* Controles directos (sliders y campos numéricos) para alterar en vivo cualquier variable del modelo: contagio $\beta$, periodo de incubación, cuota de vacunas $K$, modo de entrega (Dinámico vs Estático), eficacia vacunal, y selección/distribución de infectados iniciales $I_0$ en múltiples sectores simultáneos.
   2. *Visualizador Espacial 2D de Manta:* Representación visual del grafo por sectores, con animación paso a paso donde los nodos se colorean en tiempo real ($S$: verde, $E$: amarillo, $I$: rojo, $R$: azul, Brigadistas: celeste con insignia).
   3. *Gráfica Comparativa Multicurva:* Visualización de las 3 curvas superpuestas (Propuesta vs Azar vs Sin Intervención) destacando la reducción del pico de infección y el total de vidas salvadas.
-  4. *Métricas Tácticas y Brigadistas:* Indicadores de vidas salvadas, brigadistas activos, reinfecciones ocupacionales y eficacia por dosis.
+  4. *Métricas Epidemiológicas y Tácticas en el Dashboard:*
+     - **Tarjeta de Número Básico de Reproducción ($R_0$):** Métrica visible y destacada que muestra el potencial de propagación base ($\beta \cdot \langle k \rangle / \gamma$).
+     - **Tarjeta de Vidas Salvadas:** Reducción neta frente a Do Nothing y Random.
+     - **Tarjeta de Brigadistas de Convalecientes:** Voluntarios activos y reinfecciones ocupacionales reportadas.
+     - **Eficacia por Dosis Aplicada:** Vidas salvadas / total de vacunas administradas.
   5. *Informe Ejecutivo para el COE Cantonal / Alcalde:* Panel de texto claro y no técnico generado automáticamente con el resumen de la recomendación y balance de recursos.
 
 ---
