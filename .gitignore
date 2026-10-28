@@ -11,3 +11,8 @@ dist/
 .env.*
 infra/*.local.json
 
+*.zip
+*.backup
+node_modules/
+resultados_simulador/
+aws-outputs.json

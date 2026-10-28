@@ -1,0 +1,10 @@
+{
+    "Version":  "2012-10-17",
+    "Statement":  [
+                      {
+                          "Effect":  "Allow",
+                          "Resource":  "arn:aws:states:us-east-2:887324469817:stateMachine:Spookython-Simulation-Express",
+                          "Action":  "states:StartSyncExecution"
+                      }
+                  ]
+}

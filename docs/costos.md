@@ -9,14 +9,16 @@ una Región de ejecución. Consulta del 28 de octubre de 2026:
 - La consola indica **0/1 destinatarios verificados**: el titular debe confirmar
   su correo para recibir avisos. No se enviaron mensajes desde esta sesión.
 - Gasto mensual del proyecto según Budgets: **USD 0,011**, redondeado en consola
-  a USD 0,01. No es gasto atribuido a este contenedor; facturación tiene retraso.
-- Esta versión solo se ha ejecutado en Docker local; no tiene servicio ECS.
+  a USD 0,01. No es gasto atribuido únicamente a este contenedor; facturación
+  tiene retraso.
+- Servicio ECS Express **spookython-web** desplegado en us-east-2 y verificado
+  por HTTPS; el gasto real del evento debe registrarse al retirarlo.
 
 ![Captura real del presupuesto de USD 5](budget.png)
 
 ## Cálculo visible
 
-Supuestos orientativos antes de desplegar, sin impuestos ni créditos. Confirmar
+Supuestos orientativos de operación, sin impuestos ni créditos. Confirmar
 tarifas vigentes de Ohio en AWS Pricing Calculator. Express Mode cobra recursos
 subyacentes; contar solo la tarea Fargate subestima el total.
 

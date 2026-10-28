@@ -1,9 +1,9 @@
 # Despliegue Dev 3 — us-east-2
 
-`ecs_service.json` es una plantilla: reemplazar los tres valores `REPLACE_*`
-por la imagen ECR y los roles de servicio reales. No contiene credenciales.
-El plan abrevia incorrectamente `--container-port` como opción raíz: Express
-Mode recibe `containerPort` dentro de `primaryContainer`. La baja usa el ARN.
+`ecs_service.json` contiene la configuración real ya desplegada (imagen inmutable
+del commit `a4d7bb2`, roles de servicio y 256 CPU / 512 MiB). No contiene
+credenciales. Para otro entorno, reemplazar imagen y ARN de roles. Express Mode
+recibe `containerPort` dentro de `primaryContainer`. La baja usa el ARN.
 
 1. Confirmar Región en AWS Settings > View all projects > Overview > Additional
    Info > Region (configuración comprobada: us-east-2). Revisar el plan y el
@@ -33,7 +33,9 @@ Invoke-RestMethod https://<DOMINIO>/health
 ```
 
 Comprobar también `/`, una simulación con `configs/default_params.json` y
-HTTPS desde otra red. Copiar la URL real al README solamente después de probar.
+HTTPS desde otra red. El servicio desplegado quedó verificado en
+https://sp-5fba9b85d454464f8e6c6409e5df280d.ecs.us-east-2.on.aws; los detalles
+de la reparación y publicación están en [../docs/aws-deployment.md](../docs/aws-deployment.md).
 
 ## Retirar el servicio
 
@@ -56,9 +58,10 @@ ruedas Windows. El rol Lambda necesita logs; el rol Step Functions necesita
 
 Entrada: `{"base": <configuración>, "seeds": [42,43,44]}` (1–100 semillas).
 El Inline Map retorna métricas por réplica y la tarea Agregar devuelve solo
-media, p2.5, p97.5, mínimo y máximo. Este complemento no está desplegado y no se
-activa antes de validar la URL principal. `/api/batch` funciona sin AWS usando
-un ProcessPoolExecutor local; las dos rutas no se confunden en la interfaz.
+media, p2.5, p97.5, mínimo y máximo. La definición real desplegada está en
+`stepfunctions-real.json`; `step_function_def.json` sigue siendo la plantilla
+portable con `${WorkerArn}`. `/api/batch` funciona sin AWS usando un
+ProcessPoolExecutor local; las dos rutas no se confunden en la interfaz.
 
 ## Plan B: ECS Fargate tradicional (receta, no ejecutada)
 

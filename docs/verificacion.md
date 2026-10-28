@@ -1,24 +1,25 @@
-# Verificación Dev 3 — 28 de octubre de 2026
+# Verificación de la integración Dev 3 + Manta UX/UI — 28 de octubre de 2026
 
 ## Base y estructura
 
-Rama `dev_3-cloud-api-deliverables`, reconstruida desde Dev 1 (4610972) y merge
-de Dev 2 (5851c98). El árbol de trabajo anterior fue retirado completo y
-respaldado fuera del repositorio. No se agregaron sus datasets, código Vite,
-simulador independiente ni artefactos de AWS.
+Integración de `dev_3-cloud-api-deliverables` sobre `feat/manta-ux-ui`,
+partiendo de Dev 1 (4610972) y Dev 2 (5851c98). El prototipo anterior de
+Vite/Three.js y sus datasets fueron retirados; el repositorio conserva el
+simulador FastAPI + SVG y los artefactos de despliegue AWS.
 
 Están presentes los archivos de la estructura solicitada: README, pyproject,
 lock de producción, configuración por defecto, cinco documentos del reto,
-planes/especificaciones, paquete `src/seir/` con API y `static/`, Dockerfile,
-ECS JSON, worker Lambda, definición Step Functions y pruebas API. Se conservan
-pruebas adicionales y CLI del motor como utilidades del equipo.
+paquete `src/seir/` con API y `static/`, Dockerfile, ECS JSON, políticas IAM,
+worker Lambda, definición Step Functions y pruebas API. Se conservan pruebas
+adicionales y CLI del motor como utilidades del equipo. Los planes internos y
+las evidencias JSON redundantes se retiraron para alinear la entrega con el reto.
 
 ## Evidencia local
 
-- `python -m pytest -q`: **115 passed, 81 subtests passed**. Una advertencia de
+- `python -m pytest -q`: **119 passed, 100 subtests passed**. Una advertencia de
   dependencia: Starlette anuncia la futura retirada de su adaptador httpx;
   no hay pruebas fallidas.
-- `node --test tests/frontend.test.cjs`: **16/16**, incluyendo carga/error,
+- `node --test tests/frontend.test.cjs`: **23/23**, incluyendo carga/error,
   dado, autoplay, controles temporales y agrupación de solicitudes.
 - Las pruebas API se escribieron antes de `app.py` y fallaron por ausencia del
   módulo; después pasaron. Regresiones posteriores se observaron en RED antes
@@ -64,10 +65,11 @@ Semilla oficial: propuesta 33 contagios acumulados, azar 146, sin intervención
 - [x] Región configurada us-east-2 y estado del plan consultados: FREE ACTIVE.
 - [x] Budget USD 5 existente y notificaciones consultadas; captura real incluida.
 - [ ] El destinatario debe **verificar su correo** en AWS Budgets; consola 0/1.
-- [ ] Sustituir imagen ECR y roles en `infra/ecs_service.json` y desplegar ECS.
-- [ ] Guardar URL HTTPS y comprobar salud/simulación desde una red externa.
+- [x] Imagen ECR y roles reales registrados en `infra/ecs_service.json`; ECS desplegado.
+- [x] URL HTTPS guardada y salud/simulación comprobadas desde el endpoint público:
+  https://sp-5fba9b85d454464f8e6c6409e5df280d.ecs.us-east-2.on.aws
 - [ ] Medir p95 cloud y registrar gasto final del evento.
-- [ ] Desplegar complemento Lambda/Step Functions solo tras validar la URL.
+- [x] Lambda/Step Functions desplegados y comparados con los artefactos locales.
 - [ ] Incorporar presentación del pitch antes de entregar al hackathon.
 
 La implementación local y los artefactos están preparados. La entrega cloud

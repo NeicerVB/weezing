@@ -43,3 +43,5 @@ typing-inspection==0.4.4
     #   pydantic
 uvicorn==0.54.0
     # via weezing-seir (pyproject.toml)
+
+boto3>=1.35,<2

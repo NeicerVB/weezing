@@ -1,10 +1,12 @@
 {
-  "serviceName": "manta-containment-simulator",
-  "executionRoleArn": "REPLACE_EXECUTION_ROLE_ARN",
-  "infrastructureRoleArn": "REPLACE_INFRASTRUCTURE_ROLE_ARN",
+  "serviceName": "spookython-web",
+  "cluster": "default",
+  "executionRoleArn": "arn:aws:iam::887324469817:role/service-role/ecsTaskExecutionRole",
+  "infrastructureRoleArn": "arn:aws:iam::887324469817:role/service-role/ecsInfrastructureRoleForExpressServices",
   "primaryContainer": {
-    "image": "REPLACE_ECR_IMAGE_URI",
-    "containerPort": 8000
+    "image": "887324469817.dkr.ecr.us-east-2.amazonaws.com/spookython-simulador@sha256:4ff5534241ce1dbfd134b0cc79d022ccf6d7ef71ee62647eaaca24b670b4d8c5",
+    "containerPort": 8000,
+    "awsLogsConfiguration": {"logGroup": "/aws/ecs/default/spookython-web-14ac", "logStreamPrefix": "ecs"}
   },
   "healthCheckPath": "/health",
   "cpu": "256",

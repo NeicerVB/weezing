@@ -161,7 +161,7 @@ El proyecto implementa las capacidades avanzadas de la rúbrica oficial:
 - [x] **Visualización territorial animada (SVG Nativo):** Mapa interactivo de Manta con renderizado *diff-only* sobre *requestAnimationFrame* a 60 fps, con soporte completo de Pan & Zoom y sin dependencias de frameworks pesados.
 - [x] **Informe ejecutivo para tomadores de decisiones:** Resumen en lenguaje natural generado dinámicamente con balance de contagios evitados, saturación hospitalaria y recomendaciones territoriales.
 - [x] **Intervención multidimensional:** Combinación sinérgica de vacunación *leaky* con brigadistas comunitarios y reasignación dinámica de cuotas sobrantes.
-- [x] **Arquitectura desacoplada Cloud-Ready:** Preparado para orquestación masiva mediante AWS Step Functions Express y workers AWS Lambda.
+- [x] **Arquitectura desacoplada Cloud-Ready:** Orquestación masiva mediante AWS Step Functions Express y workers AWS Lambda, con respaldo local mediante `ProcessPoolExecutor`.
 
 ---
 
@@ -171,6 +171,7 @@ El proyecto implementa las capacidades avanzadas de la rúbrica oficial:
 
 - **Diagrama en formato vectorial:** [docs/arquitectura.svg](docs/arquitectura.svg)
 - **Archivo fuente editable en Draw.io:** [docs/arquitectura.drawio](docs/arquitectura.drawio)
+- **Documentación técnica AWS:** [docs/documentacion-tecnica-aws.md](docs/documentacion-tecnica-aws.md)
 
 ### Componentes y Delimitación de Acceso
 
@@ -182,7 +183,7 @@ El proyecto implementa las capacidades avanzadas de la rúbrica oficial:
    - **Control de Sobrecarga:** Semáforo `asyncio.Semaphore(2)` que protege el servidor contra denegación de servicio (HTTP 429 con cabecera `Retry-After: 2`).
    - **Aislamiento de CPU:** `ProcessPoolExecutor(2)` dedicado para cálculos pesados de autómata celular, manteniendo el bucle asíncrono y los healthchecks libres de bloqueos.
    - **Motor SEIR & Topología O(1):** Grafos inmutables en Python con adyacencias en `frozenset` para consultas en tiempo constante.
-   - **Infraestructura AWS:** Contenedor Docker en AWS ECS Fargate (0.25 vCPU, 512 MiB), logs centralizados en AWS CloudWatch y soporte para expansión Monte Carlo en Step Functions + Lambda.
+   - **Infraestructura AWS:** Contenedor Docker en AWS ECS Fargate (0.25 vCPU, 512 MiB), logs centralizados en AWS CloudWatch y expansión Monte Carlo con Step Functions + Lambda.
 
 ---
 
@@ -190,9 +191,11 @@ El proyecto implementa las capacidades avanzadas de la rúbrica oficial:
 
 ### Estado del Despliegue y URL Pública
 
-- **URL Pública del Servicio:** `https://<ALB-DNS-O-IP-PUBLICA>:8000` *(aprovisionada para la sesión de pitch y demo del jurado)*
-- **Endpoint de verificación rápida:** `https://<ALB-DNS-O-IP-PUBLICA>:8000/health`
+- **URL Pública del Servicio:** https://sp-5fba9b85d454464f8e6c6409e5df280d.ecs.us-east-2.on.aws
+- **Endpoint de verificación rápida:** https://sp-5fba9b85d454464f8e6c6409e5df280d.ecs.us-east-2.on.aws/health
 - **Región AWS:** `us-east-2` (Ohio)
+- **Servicio:** `spookython-web` (ECS Express Mode, imagen del commit `a4d7bb2`)
+- **Verificado:** `GET /health` y `POST /api/simulate` desde el endpoint HTTPS.
 
 ### Comandos de Aprovisionamiento (AWS CLI)
 > **Prerrequisito:** Requiere tener instalado el [AWS CLI](https://aws.amazon.com/cli/), credenciales activas con permisos de ECS (`aws configure`) y la imagen de Docker subida a Amazon ECR.
@@ -206,13 +209,15 @@ aws ecs create-express-gateway-service \
   --cli-input-json file://infra/ecs_service.json
 
 # 2. Verificar estado de salud remoto
-curl -f https://<ALB-DNS-O-IP-PUBLICA>:8000/health
+curl -f https://sp-5fba9b85d454464f8e6c6409e5df280d.ecs.us-east-2.on.aws/health
 
 # 3. Desmantelar servicio tras evaluación (control estricto de gasto)
 aws ecs delete-express-gateway-service \
   --region us-east-2 \
   --service-arn <ARN-DEL-SERVICIO>
 ```
+
+La receta operativa completa, incluyendo la reparación del rol de infraestructura y la publicación de la imagen, está en [docs/aws-deployment.md](docs/aws-deployment.md) e [infra/README.md](infra/README.md).
 
 ---
 
@@ -222,7 +227,7 @@ aws ecs delete-express-gateway-service \
 
 ![AWS Budget con Alertas](docs/budget.png)
 
-Se configuró un **AWS Budget** de **USD 5.00** con notificaciones automáticas por correo electrónico al alcanzar el 50%, 80% y 100% del umbral previsto, garantizando control presupuestario estricto desde el inicio del proyecto.
+Se configuró un **AWS Budget** de **USD 5.00** con notificaciones automáticas por correo electrónico al alcanzar el 85% y 100% del gasto real, y un aviso de previsión al 100%. La consola muestra **0/1 destinatarios verificados**, por lo que el titular debe confirmar su correo para recibir las alertas. El presupuesto es un mecanismo de seguimiento, **no un tope automático de gasto**.
 
 ### Desglose de Costos de Operación
 
@@ -231,7 +236,7 @@ Se configuró un **AWS Budget** de **USD 5.00** con notificaciones automáticas 
 | **AWS ECS Fargate** | 1 tarea (0.25 vCPU, 512 MiB RAM) | USD 0.35 | USD 10.50 |
 | **Application Load Balancer (ALB)** | 1 ALB en us-east-2 + 1 LCU base | USD 0.75 | USD 22.50 |
 | **Tráfico y CloudWatch Logs** | Gzip <50KB por petición + retención 7 días | USD 0.10 | USD 3.39 |
-| **Gasto Real Durante el Evento** | Consumo acumulado de pruebas | **USD 0.00** | *(Capa gratuita / Sandbox)* |
+| **Gasto Real Durante el Evento** | Consumo acumulado según AWS Budgets | **~USD 0.01 / mes** | *(Capa gratuita / Sandbox)* |
 | **Total Operativo Proyectado** | **Operación continua 24/7** | **~USD 1.20 / día** | **~USD 36.39 / mes** |
 
 *Cálculo detallado, supuestos de dimensionamiento y políticas de ahorro documentados en [docs/costos.md](docs/costos.md).*
@@ -264,10 +269,10 @@ En cumplimiento con el punto 8 de los requisitos del reto, se detalla el origen 
 > **Prerrequisito:** Requiere tener el entorno virtual de Python activado con las dependencias de prueba (`python -m pip install -e ".[test]"`) y [Node.js](https://nodejs.org/) v18+ instalado.
 
 ```bash
-# 1. Pruebas unitarias y de integración de Python (67 pruebas)
+# 1. Pruebas unitarias y de integración de Python (119 pruebas, 100 subpruebas)
 python -m pytest -q
 
-# 2. Pruebas unitarias de interfaz y lógica frontend (16 pruebas)
+# 2. Pruebas unitarias de interfaz y lógica frontend (23 pruebas)
 node --test tests/frontend.test.cjs
 ```
 
@@ -283,3 +288,4 @@ docker run --rm --cpus=0.25 --memory=512m -p 8000:8000 manta-sim
 
 - **Restricción de CPU en ECS Fargate:** En una instancia mínima de 0.25 vCPU, la ejecución de una simulación individual tarda ~1.7 s. Un lote completo de 30 réplicas Monte Carlo en un solo hilo tarda ~38 s; para reducir este tiempo por debajo de 3 s en producción masiva, se debe escalar a workers distribuidos vía Step Functions Express.
 - **Red Sintética:** Aunque la topología refleja la conectividad urbana de Manta, no incorpora censos nominales en tiempo real del INEC ni historiales clínicos individuales.
+- **Entrega pendiente:** La presentación del pitch debe cargarse en la plataforma del hackathon antes del cierre. El correo del AWS Budget sigue pendiente de verificación y el gasto final del evento debe registrarse tras la demo.

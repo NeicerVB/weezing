@@ -1,8 +1,9 @@
 # Dictamen final — preparación para AWS
 
-**Resultado: APTO para iniciar el despliegue del núcleo en us-east-2.**
-Esto acredita el software y su contenedor local. No acredita todavía una
-URL HTTPS pública, latencia real de AWS ni una entrega cloud terminada.
+**Resultado: núcleo local APTO y servicio desplegado en us-east-2.**
+La URL HTTPS pública, `GET /health` y `POST /api/simulate` están verificados.
+Quedan pendientes la medición formal de latencia cloud, el gasto final del
+evento y la verificación del correo del AWS Budget.
 
 Auditoría del 28 de octubre de 2026 sobre la integración Dev 1 + Dev 2 + Dev 3.
 Se usaron depuración sistemática, TDD, pruebas del Anexo B y revisión de código
@@ -18,8 +19,8 @@ independiente. Los fallos nuevos se reprodujeron antes de corregirse.
 | 4. Estrategias | Cascada, sobrantes en hubs, stock y paridad por día, R0 y determinismo | Verificado |
 | 5. API | Contrato por defecto, 400/429, límite 2, lotes agregados, mensajes sin rutas internas | Verificado |
 | 6. Frontend | Navegador real: 1000 nodos, tres curvas, animación, KPI, informe y Monte Carlo | Verificado |
-| 7. Docker/infra | Imagen construida, usuario simulator, 0,25 CPU/512 MiB, puerto 8000, /health | Docker verificado; cloud pendiente |
-| 8. Aceptación | 115 pruebas Python, 81 subpruebas; 16 pruebas Node tras mejora UX; documentos e imágenes oficiales | Núcleo local verificado |
+| 7. Docker/infra | Imagen publicada en ECR, servicio ECS Express 0,25 CPU/512 MiB, puerto 8000, /health | Docker y cloud verificados |
+| 8. Aceptación | 119 pruebas Python, 100 subpruebas; 23 pruebas Node tras integración UX/UI; documentos e imágenes oficiales | Núcleo local verificado |
 
 Las estrategias están implementadas como funciones con interfaz explícita,
 en lugar de las clases Protocol sugeridas por el plan. La API y el worker
@@ -89,11 +90,14 @@ debajo de 3 s en esta muestra local; eso **no demuestra** el p95 de AWS.
 - Lote completo de 30 réplicas con series: **4.256 bytes JSON**, 1.379 bytes
   comprimidos; menor a 30 KB sin comprimir.
 - Ese lote tardó **37,9644 s con 0,25 CPU**. No cumple una meta de 3 s para
-  Monte Carlo. El despliegue Pro Step Functions/Lambda y su latencia siguen
-  pendientes; no se confunde el rendimiento individual con el de 30 réplicas.
+  Monte Carlo. El despliegue Pro Step Functions/Lambda se realizó y se probó
+  con tres réplicas; la latencia cloud y la trazabilidad individual siguen
+  pendientes de medición formal. No se confunde el rendimiento individual con
+  el de 30 réplicas.
 
-Resultados registrados: [local](local-verification.json),
-[Docker](runtime-verification.json), [Monte Carlo](batch-verification.json).
+Las evidencias JSON auxiliares se retiraron de la entrega; los resultados
+relevantes se conservan resumidos en este documento y en
+[verificacion.md](verificacion.md).
 
 ## Comprobaciones en navegador
 
@@ -105,29 +109,34 @@ Chrome contra el contenedor local:
 - Botón Monte Carlo: tres medias y una banda empírica real; etiqueta distingue
   tarjetas de la simulación individual. Sin errores de consola.
 
-## Puerta de entrada a AWS
+## Estado del despliegue AWS
 
-Consulta de solo lectura confirmada: proyecto FREE ACTIVE, Región configurada
-us-east-2, repositorio ECR **spookython-simulador** existente pero sin imágenes,
-sin clúster ECS y sin roles de servicio ECS identificados.
+El servicio ECS Express **spookython-web** quedó desplegado en us-east-2 con
+imagen inmutable del commit `a4d7bb2` y está disponible en:
 
-Antes de dejar una aplicación pública operativa:
+https://sp-5fba9b85d454464f8e6c6409e5df280d.ecs.us-east-2.on.aws
 
-1. Verificar el correo del **Spookython-Budget**: existe el presupuesto USD 5,
-   pero la consola sigue indicando **0/1 email verified / Inactive**.
-2. Publicar la imagen validada con etiqueta de commit en el ECR existente.
-3. Crear execution role e infrastructure role para servicios, sin asignarlos
-   a personas. Completar sus ARN y la imagen en `infra/ecs_service.json`.
-4. Crear ECS Express en us-east-2 con 256 CPU, 512 MiB, una tarea, puerto 8000,
-   `/health`. Seguir [infra/README.md](../infra/README.md), que incluye Plan B
-   tradicional, comandos corregidos y eliminación por ARN.
-5. Probar HTTPS desde otra red, medir p95 cloud y actualizar URL/costos reales.
-6. Mantener Pro pospuesto hasta validar la aplicación principal. Presupuesto
-   USD 5 es una alerta, no un tope automático: revisar AWS Settings > Billing.
+Completado y verificado:
 
-La auditoría no creó recursos facturables, no publicó contenedores y no envió
-correos. No queda un fallo local bloqueante identificado; la entrega completa
-sigue condicionada a las verificaciones cloud y al Budget operativo.
+1. Imagen publicada en el ECR **spookython-simulador** con etiqueta de commit.
+2. Roles de ejecución e infraestructura configurados; se añadió únicamente el
+   permiso de lectura requerido por ECS Express (ver
+   [aws-deployment.md](aws-deployment.md)).
+3. ECS Express creado con 256 CPU, 512 MiB, una tarea, puerto 8000 y `/health`.
+4. `GET /health` y `POST /api/simulate` comprobados desde el endpoint HTTPS.
+5. Lambda y Step Functions desplegados con la definición real en
+   `infra/stepfunctions-real.json`.
+
+Pendiente antes del cierre:
+
+1. Verificar el correo del **Spookython-Budget**: la consola sigue indicando
+   **0/1 email verified / Inactive**. El presupuesto es una alerta, no un tope
+   automático.
+2. Medir p95 cloud y registrar el gasto final del evento tras retirar el servicio.
+3. Incorporar la presentación del pitch en la plataforma del hackathon.
+
+La entrega local y cloud está operativa; el cierre documental depende de los
+tres pendientes anteriores.
 
 Observación menor de revisión: el rastreo ampliado de brigadistas parte de
 contactos directos susceptibles elegibles; no atraviesa un contacto ya vacunado
