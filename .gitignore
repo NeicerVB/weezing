@@ -11,3 +11,5 @@ dist/
 .env.*
 infra/*.local.json
 
+*.zip
+*.backup

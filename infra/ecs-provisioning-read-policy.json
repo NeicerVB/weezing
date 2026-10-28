@@ -1,0 +1,12 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DescribeRegionalAccountAttributesForManagedALB",
+      "Effect": "Allow",
+      "Action": "ec2:DescribeAccountAttributes",
+      "Resource": "*",
+      "Condition": {"StringEquals": {"aws:RequestedRegion": "us-east-2"}}
+    }
+  ]
+}
