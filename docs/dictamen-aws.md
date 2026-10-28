@@ -19,7 +19,7 @@ independiente. Los fallos nuevos se reprodujeron antes de corregirse.
 | 5. API | Contrato por defecto, 400/429, límite 2, lotes agregados, mensajes sin rutas internas | Verificado |
 | 6. Frontend | Navegador real: 1000 nodos, tres curvas, animación, KPI, informe y Monte Carlo | Verificado |
 | 7. Docker/infra | Imagen construida, usuario simulator, 0,25 CPU/512 MiB, puerto 8000, /health | Docker verificado; cloud pendiente |
-| 8. Aceptación | 115 pruebas Python, 81 subpruebas; 11 pruebas Node; documentos e imágenes oficiales | Núcleo local verificado |
+| 8. Aceptación | 115 pruebas Python, 81 subpruebas; 16 pruebas Node tras mejora UX; documentos e imágenes oficiales | Núcleo local verificado |
 
 Las estrategias están implementadas como funciones con interfaz explícita,
 en lugar de las clases Protocol sugeridas por el plan. La API y el worker
@@ -82,7 +82,7 @@ La meta local ≤800 ms se cumple en la muestra caliente sin limitar CPU. La
 configuración mínima de contenedor no cumple esa meta local, pero queda por
 debajo de 3 s en esta muestra local; eso **no demuestra** el p95 de AWS.
 
-- Frontend: aproximadamente 27 KB, menor a 80 KB.
+- Frontend tras mejora visual/UX: aproximadamente 54 KB, menor a 80 KB.
 - Animación oficial: **28.692 bytes transferidos con gzip**. El JSON sin
   comprimir es mayor a 50 KB. La interpretación aquí es tamaño de transferencia
   negociada; no se afirma un límite de 50 KB descomprimidos.

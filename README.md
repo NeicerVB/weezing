@@ -25,6 +25,13 @@ python -m uvicorn seir.app:app --host 0.0.0.0 --port 8000
 Abrir http://localhost:8000. Alternativa Conda: `conda create -n manta python=3.12`,
 `conda activate manta` y ejecutar los comandos pip y Uvicorn.
 
+La interfaz genera el escenario inicial y reproduce la red automáticamente.
+El botón con dado crea parámetros válidos y una semilla nueva. Durante el
+cálculo muestra «Generando…»; pausa, reinicio, velocidad y barra temporal
+sincronizan la red, su balance diario y el cursor de las curvas. Los KPI se
+identifican como balance final. En móvil los parámetros se despliegan bajo
+«Ver parámetros». Se respeta la preferencia de movimiento reducido.
+
 ```powershell
 python -m pytest -q
 node --test tests/frontend.test.cjs

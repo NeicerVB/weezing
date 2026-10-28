@@ -18,7 +18,8 @@ pruebas adicionales y CLI del motor como utilidades del equipo.
 - `python -m pytest -q`: **115 passed, 81 subtests passed**. Una advertencia de
   dependencia: Starlette anuncia la futura retirada de su adaptador httpx;
   no hay pruebas fallidas.
-- `node --test tests/frontend.test.cjs`: **11/11**.
+- `node --test tests/frontend.test.cjs`: **16/16**, incluyendo carga/error,
+  dado, autoplay, controles temporales y agrupación de solicitudes.
 - Las pruebas API se escribieron antes de `app.py` y fallaron por ausencia del
   módulo; después pasaron. Regresiones posteriores se observaron en RED antes
   de corregir animación de vacunados, paridad de dosis y semillas batch.

@@ -40,6 +40,9 @@ function setup(fetchImpl = async () => response(fixture())) {
     }
   }
   const document = {
+    listeners: {},
+    addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); },
+    fire(name) { for (const fn of this.listeners[name] ?? []) fn(); },
     getElementById: (id) => elements[id],
     createElementNS: (_, tag) => new Element(tag),
     createElement: (tag) => new Element(tag),
@@ -60,6 +63,84 @@ function setup(fetchImpl = async () => response(fixture())) {
 }
 
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+
+test('genera la primera vista y muestra carga hasta que llega la respuesta', async () => {
+  let release;
+  let sent;
+  const { elements: el, document } = setup((url, options) => {
+    sent = JSON.parse(options.body);
+    return new Promise(resolve => { release = resolve; });
+  });
+  document.fire('DOMContentLoaded');
+  assert.ok(sent, 'Debe generar un escenario al abrir la página');
+  assert.equal(sent.include_frames, true);
+  assert.equal(el.simulate.disabled, true);
+  assert.match(el.simulate.textContent, /generando/i);
+  assert.equal(el['map-loading'].hidden, false);
+  assert.equal(el.workspace.getAttribute('aria-busy'), 'true');
+  release(response(fixture()));
+  await flush();
+  assert.equal(el['map-loading'].hidden, true);
+  assert.equal(el.simulate.disabled, false);
+  assert.equal(el.workspace.getAttribute('aria-busy'), 'false');
+});
+
+test('un error retira la carga, conserva resultados previos y permite reintentar', async () => {
+  let fail = false;
+  const { elements: el } = setup(async () => fail ? response({error:'Servidor ocupado'},429,'2') : response(fixture()));
+  el.controls.fire('submit');
+  await flush();
+  fail = true;
+  el.controls.fire('submit');
+  await flush();
+  assert.equal(el.r0.textContent, '2.40');
+  assert.equal(el['map-loading'].hidden, true);
+  assert.equal(el.simulate.disabled, false);
+  assert.equal(el['app-status'].getAttribute('data-state'), 'error');
+  assert.match(el.error.textContent, /ocupado/);
+});
+
+test('el dado cambia escenarios, respeta restricciones y solicita datos reales', async () => {
+  const sent=[];
+  const { elements: el } = setup(async (url,options) => { sent.push(JSON.parse(options.body)); return response(fixture()); });
+  let previousSeed=Number(el.seed.value);
+  assert.ok(el.randomize, 'Falta el botón dado');
+  for(let roll=0; roll<20; roll++) {
+    el.randomize.fire('click');
+    await flush();
+    const body=sent.at(-1);
+    assert.ok(body);
+    assert.notEqual(body.seed,previousSeed);
+    previousSeed=body.seed;
+    assert.ok(body.n>=7 && body.n<=2000);
+    assert.ok(body.days>=1 && body.days<=90);
+    assert.ok(body.beta>0 && body.beta<=1);
+    assert.ok(body.intervention.k_max<=Math.floor(.4*body.n));
+    assert.ok(Object.values(body.initial).reduce((a,b)=>a+b,0)>0);
+    for(const [sector,count] of Object.entries(body.initial)) {
+      const index=['tarqui','eloy_alfaro','los_esteros','manta_centro','murcielago','barbasquillo','san_mateo'].indexOf(sector);
+      assert.ok(count<=Math.floor(body.n/7)+(index<body.n%7?1:0));
+    }
+  }
+  assert.match(el['scenario-note'].textContent,/semilla/i);
+});
+
+test('la red avanza sola y sincroniza día y balance; pausa y reinicio funcionan', async () => {
+  const data=fixture();
+  data.graph={nodes:[{id:0,x:10,y:20,state:'S'},{id:1,x:30,y:40,state:'I'}],edges:[[0,1]]};
+  data.frames=[{day:1,changed:[{id:0,state:'E'}]}];
+  data.strategies.proposed.days=[{day:0,s:1,e:0,i:1,r:0},{day:1,s:0,e:1,i:1,r:0}];
+  const {elements:el,tick}=setup(async()=>response(data));
+  el.controls.fire('submit'); await flush();
+  tick(250);
+  assert.equal(el.day.textContent,'Día 1');
+  assert.equal(el['map-count-e'].textContent,'1');
+  el.restart.fire('click');
+  assert.equal(el.day.textContent,'Día 0');
+  assert.equal(el['map-count-s'].textContent,'1');
+  el.play.fire('click'); el.pause.fire('click'); tick(500);
+  assert.equal(el.day.textContent,'Día 0');
+});
 
 test('solicita Monte Carlo explícito y dibuja medias con rango empírico real', async () => {
   const requests = [];
@@ -230,15 +311,29 @@ test('una respuesta anterior no sobrescribe los resultados más recientes', asyn
   el.controls.fire('input');
   tick(150);
   await flush();
-  assert.equal(pending.length, 2);
-  pending[1](response(fixture()));
-  await flush();
-  assert.equal(el.r0.textContent, '2.40');
+  assert.equal(pending.length, 1, 'Agrupa cambios mientras hay una simulación en curso');
   const old = fixture();
   old.meta.r0 = 9;
   pending[0](response(old));
   await flush();
+  assert.equal(pending.length, 2);
+  assert.notEqual(el.r0.textContent, '9.00');
+  pending[1](response(fixture()));
+  await flush();
   assert.equal(el.r0.textContent, '2.40');
+});
+
+test('un cambio ya iniciado no se vuelve a solicitar al vencer su debounce', async () => {
+  const pending=[];
+  const {elements:el,tick}=setup(()=>new Promise(resolve=>pending.push(resolve)));
+  el.controls.fire('submit');
+  el.beta.value='0.04'; el.controls.fire('input'); tick(150);
+  el.beta.value='0.05'; el.controls.fire('input');
+  pending[0](response(fixture())); await flush();
+  assert.equal(pending.length,2);
+  pending[1](response(fixture())); await flush();
+  tick(150); await flush();
+  assert.equal(pending.length,2,'No debe gastar CPU repitiendo el último escenario');
 });
 
 test('dibuja la topología opcional y aplica diffs sin perder el estado inicial al volver al día cero', async () => {
@@ -249,7 +344,7 @@ test('dibuja la topología opcional y aplica diffs sin perder el estado inicial 
   el.include_frames.checked = true;
   el.controls.fire('submit');
   await flush();
-  assert.equal(el.play.disabled, false);
+  assert.equal(el.play.disabled, true, 'Reproduce automáticamente al llegar la red');
   assert.equal(descendants(el.map).filter((child) => child.tagName === 'line').length, 1);
   let shapes = descendants(el.map).filter((child) => child.attrs['data-node-id']);
   assert.deepEqual(shapes.map((shape) => shape.tagName), ['circle', 'polygon']);
