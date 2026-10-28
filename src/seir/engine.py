@@ -109,12 +109,7 @@ class SeirEngine:
         return Counter(self.state.values())
 
     def vaccinate(self, node: int, day: int) -> bool:
-        """Intenta administrar una dosis al nodo en el día dado.
-        
-        Solo se vacuna si el nodo está en estado S, no está vacunado y no tiene vacuna pendiente.
-        Si config.delay == 0, se inmuniza inmediatamente.
-        Si config.delay > 0, queda pendiente hasta day + config.delay.
-        """
+        """Intenta administrar una dosis al nodo en el día dado."""
         if self.state[node] is not State.S:
             return False
         mod = self.modifiers[node]
@@ -138,13 +133,14 @@ class SeirEngine:
     def step(self, day: int) -> DayRecord:
         # 1. Maduración de vacunas pendientes
         for node, mod in self.modifiers.items():
-            if mod.is_pending and mod.pending_vaccine_day == day:
+            if mod.pending_vaccine_day == day:
                 if self.state[node] is State.S:
                     mod.is_vaccinated = True
                 mod.pending_vaccine_day = None
 
         snapshot = self.state.copy()
-        infectious = {node for node, state in snapshot.items() if state is State.I}
+        infectious = [node for node, state in snapshot.items() if state is State.I]
+        exposed_nodes = [node for node, state in snapshot.items() if state is State.E]
         config = self.config
         to_exposed: set[int] = set()
         to_infectious: set[int] = set()
@@ -157,36 +153,48 @@ class SeirEngine:
                 sec = self.territorial_graph.sectors[inf_node]
                 infectious_by_sector[sec] = infectious_by_sector.get(sec, 0) + 1
 
-        for node, state in snapshot.items():
-            mod = self.modifiers[node]
-            if state is State.S:
-                exposed = sum(1 for neighbor in self.graph.adjacency[node] if neighbor in infectious)
-                if exposed:
-                    if mod.is_vaccinated:
-                        eff_beta = (1.0 - config.efficacy) * config.beta
-                        probability = 1.0 - (1.0 - eff_beta) ** exposed
-                    else:
-                        probability = 1.0 - (1.0 - config.beta) ** exposed
-                    if event_uniform(config.seed, day, node, "s2e") < probability:
-                        to_exposed.add(node)
-                        if mod.is_pending:
-                            mod.pending_vaccine_day = None
-            elif state is State.E:
-                if event_uniform(config.seed, day, node, "e2i") < config.sigma:
-                    to_infectious.add(node)
-            elif state is State.I:
-                if event_uniform(config.seed, day, node, "i2r") < config.gamma:
-                    to_removed.add(node)
-            elif state is State.R and mod.is_volunteer:
-                if self.territorial_graph is not None:
-                    sec = self.territorial_graph.sectors[node]
-                    sector_has_i = infectious_by_sector.get(sec, 0) > 0
-                else:
-                    sector_has_i = len(infectious) > 0
+        # Evaluar únicamente nodos S que tienen vecinos infectados
+        exposed_counts: dict[int, int] = {}
+        for inf in infectious:
+            for neighbor in self.graph.adjacency[inf]:
+                if snapshot[neighbor] is State.S:
+                    exposed_counts[neighbor] = exposed_counts.get(neighbor, 0) + 1
 
-                if sector_has_i and config.p_reinf > 0.0:
-                    if event_uniform(config.seed, day, node, "volunteer_reinf") < config.p_reinf:
-                        to_reinfected.add(node)
+        for node, exposed in exposed_counts.items():
+            mod = self.modifiers[node]
+            if mod.is_vaccinated:
+                eff_beta = (1.0 - config.efficacy) * config.beta
+                probability = 1.0 - (1.0 - eff_beta) ** exposed
+            else:
+                probability = 1.0 - (1.0 - config.beta) ** exposed
+            if event_uniform(config.seed, day, node, "s2e") < probability:
+                to_exposed.add(node)
+                if mod.is_pending:
+                    mod.pending_vaccine_day = None
+
+        # Evaluar transiciones E -> I
+        for node in exposed_nodes:
+            if event_uniform(config.seed, day, node, "e2i") < config.sigma:
+                to_infectious.add(node)
+
+        # Evaluar transiciones I -> R
+        for node in infectious:
+            if event_uniform(config.seed, day, node, "i2r") < config.gamma:
+                to_removed.add(node)
+
+        # Evaluar riesgo ocupacional de voluntarios activos en R
+        if config.p_reinf > 0.0:
+            for node, mod in self.modifiers.items():
+                if mod.is_volunteer and snapshot[node] is State.R:
+                    if self.territorial_graph is not None:
+                        sec = self.territorial_graph.sectors[node]
+                        sector_has_i = infectious_by_sector.get(sec, 0) > 0
+                    else:
+                        sector_has_i = len(infectious) > 0
+
+                    if sector_has_i:
+                        if event_uniform(config.seed, day, node, "volunteer_reinf") < config.p_reinf:
+                            to_reinfected.add(node)
 
         # Aplicación simultánea de transiciones
         for node in to_exposed:
