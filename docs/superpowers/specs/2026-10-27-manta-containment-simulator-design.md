@@ -66,7 +66,7 @@ El diseño está optimizado para responder de manera determinista e instantánea
 - **Prueba presencial:** Viernes 30 de octubre en la Universidad Laica Eloy Alfaro de Manabí (ULEAM): 5 min de pitch + 3 min de preguntas del jurado.
 - **Entorno de ejecución:** 
   - Local: Python 3.12 (Conda `env_spookython`), FastAPI, Uvicorn, pytest.
-  - Cloud: AWS región `us-east-1`, cuenta con AWS Budget de \$5 USD con alerta activa (`docs/budget.png`).
+  - Cloud: AWS región `us-east-2`, cuenta con AWS Budget de \$5 USD con alerta activa (`docs/budget.png`).
 - **Seguridad:** Cero credenciales, claves API o secretos en el repositorio Git.
 
 ---
