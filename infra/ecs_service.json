@@ -1,0 +1,15 @@
+{
+  "serviceName": "manta-containment-simulator",
+  "executionRoleArn": "REPLACE_EXECUTION_ROLE_ARN",
+  "infrastructureRoleArn": "REPLACE_INFRASTRUCTURE_ROLE_ARN",
+  "primaryContainer": {
+    "image": "REPLACE_ECR_IMAGE_URI",
+    "containerPort": 8000
+  },
+  "healthCheckPath": "/health",
+  "cpu": "256",
+  "memory": "512",
+  "cpuArchitecture": "X86_64",
+  "scalingTarget": {"minTaskCount": 1, "maxTaskCount": 1},
+  "tags": [{"key": "Project", "value": "manta-spookython"}]
+}

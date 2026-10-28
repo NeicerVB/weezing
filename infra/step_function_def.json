@@ -1,0 +1,36 @@
+{
+  "Comment": "Definición para máquina EXPRESS. Invocar con StartSyncExecution. Reemplazar ${WorkerArn} al desplegar.",
+  "StartAt": "Replicas",
+  "TimeoutSeconds": 120,
+  "States": {
+    "Replicas": {
+      "Type": "Map",
+      "ItemsPath": "$.seeds",
+      "MaxConcurrency": 2,
+      "ItemSelector": {"base.$": "$.base", "seed.$": "$$.Map.Item.Value"},
+      "ItemProcessor": {
+        "ProcessorConfig": {"Mode": "INLINE"},
+        "StartAt": "Simular",
+        "States": {
+          "Simular": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {"FunctionName": "${WorkerArn}", "Payload.$": "$"},
+            "OutputPath": "$.Payload",
+            "Retry": [{"ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], "IntervalSeconds": 2, "MaxAttempts": 2, "BackoffRate": 2}],
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.results",
+      "Next": "Agregar"
+    },
+    "Agregar": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${WorkerArn}", "Payload": {"results.$": "$.results"}},
+      "OutputPath": "$.Payload",
+      "End": true
+    }
+  }
+}

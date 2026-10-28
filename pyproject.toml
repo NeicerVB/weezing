@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "weezing-seir"
 version = "0.3.0"
 description = "Autómata SEIR sobre grafos territoriales de Manta, simulación epidemiológica y estrategias de contención"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn>=0.32.0",
