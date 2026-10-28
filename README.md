@@ -72,7 +72,7 @@ curl -s http://localhost:8000/health
 # 2. Obtener el resumen numérico exacto de la simulación oficial
 curl -s -X POST http://localhost:8000/api/simulate \
   -H "Content-Type: application/json" \
-  -d @configs/default_params.json | jq '.summary'
+  -d @configs/default_params.json | jq '{propuesta: .strategies.proposed.metrics, azar: .strategies.random.metrics, control: .strategies.none.metrics}'
 ```
 
 **En Windows (PowerShell):**
@@ -82,7 +82,12 @@ Invoke-RestMethod http://localhost:8000/health
 
 # 2. Obtener el resumen numérico exacto de la simulación oficial
 $body = Get-Content configs/default_params.json -Raw
-Invoke-RestMethod http://localhost:8000/api/simulate -Method Post -ContentType application/json -Body $body | ConvertTo-Json -Depth 5
+$res = Invoke-RestMethod http://localhost:8000/api/simulate -Method Post -ContentType application/json -Body $body
+[PSCustomObject]@{
+    Propuesta = $res.strategies.proposed.metrics
+    Azar      = $res.strategies.random.metrics
+    Control   = $res.strategies.none.metrics
+} | ConvertTo-Json -Depth 3
 ```
 
 ### Tabla Comparativa de Resultados Oficiales
