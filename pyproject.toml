@@ -1,22 +1,2 @@
-[build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "weezing-seir"
-version = "0.2.0"
-description = "Autómata SEIR sobre grafos sintéticos, sin dependencias de ejecución"
-requires-python = ">=3.10"
-
-[project.optional-dependencies]
-test = ["pytest"]
-
-[project.scripts]
-weezing-seir = "seir.cli:main"
-weezing-web = "seir.web:main"
-
-[tool.setuptools.packages.find]
-include = ["seir*"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
