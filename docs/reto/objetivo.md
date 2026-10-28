@@ -1,0 +1,3 @@
+Construir una herramienta que simule cómo se propaga una enfermedad en una población y encuentre la mejor estrategia de intervención con recursos limitados, mostrando con números cuánta gente se salva frente a no hacer nada o actuar al azar.
+
+La organización NO entrega datos, vacunas ni enfermedades: cada equipo diseña su escenario y su solución. Se evalúa qué tan bien piensan el problema y qué tan sólida es su respuesta.
