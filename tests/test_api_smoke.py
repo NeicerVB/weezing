@@ -128,3 +128,31 @@ def test_animation_states_match_epidemiological_counts(application):
         for state in "SEI":
             assert sum(value == state for value in states.values()) == row[state.lower()]
         assert sum(value in ("R", "V") for value in states.values()) == row["r"]
+
+
+def test_default_animation_transfer_is_under_50kb(application):
+    with TestClient(application) as client:
+        response = client.post("/api/simulate", json={"include_frames": True})
+        assert response.status_code == 200
+        assert response.headers.get("Content-Encoding") == "gzip"
+        assert int(response.headers["Content-Length"]) < 50_000
+        assert len(response.json()["graph"]["nodes"]) == 1000
+
+
+def test_batch_reserves_seed_range(application):
+    with TestClient(application) as client:
+        valid = {"base": PAYLOAD | {"seed": 2**32 - 101}, "replicas": 2}
+        assert client.post("/api/batch", json=valid).status_code == 200
+        invalid = {"base": PAYLOAD | {"seed": 2**32 - 1}, "replicas": 2}
+        assert client.post("/api/batch", json=invalid).status_code == 400
+
+
+def test_random_baseline_keeps_daily_parity_when_susceptibles_run_out(application):
+    payload = {"n": 70, "days": 30, "seed": 2, "beta": .3, "degree": 8,
+               "initial": {"tarqui": 3},
+               "intervention": {"mode": "static", "quota": 2, "k_max": 28}}
+    with TestClient(application) as client:
+        data = client.post("/api/simulate", json=payload).json()
+    proposed = data["strategies"]["proposed"]["days"]
+    random_days = data["strategies"]["random"]["days"]
+    assert [r["doses_administered"] for r in proposed] == [r["doses_administered"] for r in random_days]

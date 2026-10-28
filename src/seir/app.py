@@ -11,6 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from starlette.middleware.gzip import GZipMiddleware
 
 from .config import BatchRequest, SimulateRequest, SimulationConfig
 from .strategies import run_paired_simulation
@@ -87,6 +88,7 @@ async def lifespan(application):
 
 
 app = FastAPI(title="Simulador de contención Manta", lifespan=lifespan)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 @app.exception_handler(RequestValidationError)

@@ -221,6 +221,10 @@ def run_paired_simulation(
             else:
                 daily_quota = min(quota, remaining_budget)
 
+            # La comparación emparejada no puede gastar más dosis que las
+            # disponibles en cualquiera de las dos poblaciones susceptibles.
+            available_random = sum(_is_eligible_for_vaccine(engine_rand, u) for u in range(n))
+            daily_quota = min(daily_quota, available_random)
             candidates_prop = _select_proposed_candidates(t_graph, engine_prop, daily_quota)
             doses_administered_today = engine_prop.vaccinate_nodes(candidates_prop, day)
         else:

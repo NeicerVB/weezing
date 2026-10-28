@@ -29,7 +29,7 @@ class VolunteersConfig(RequestModel):
 class SimulateRequest(RequestModel):
     n: int = Field(default=1000, ge=7, le=2000)
     days: int = Field(default=60, ge=0, le=90)
-    seed: int = Field(default=42, ge=0, le=2**32 - 101)
+    seed: int = Field(default=42, ge=0, le=2**32 - 1)
     beta: float = Field(default=.03, ge=0, le=1)
     sigma: float = Field(default=.2, ge=0, le=1)
     gamma: float = Field(default=.1, ge=0, le=1)
@@ -65,6 +65,12 @@ class SimulateRequest(RequestModel):
 class BatchRequest(RequestModel):
     base: SimulateRequest = Field(default_factory=SimulateRequest)
     replicas: int = Field(default=30, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def validate_seed_range(self):
+        if self.base.seed + self.replicas - 1 > 2**32 - 1:
+            raise ValueError("La secuencia de semillas excede el rango de 32 bits")
+        return self
 
 
 @dataclass(frozen=True)
