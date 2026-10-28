@@ -44,20 +44,20 @@
 - Consumes: Módulos actuales de `seir/`.
 - Produces: Paquete `src.seir` accesible en el `PYTHONPATH`.
 
-- [ ] **Paso 1: Mover atómicamente el paquete `seir/` a `src/seir/`**
+- [x] **Paso 1: Mover atómicamente el paquete `seir/` a `src/seir/`**
   Ejecutar:
   ```bash
   mkdir -p src && git mv seir src/seir
   ```
 
-- [ ] **Paso 2: Actualizar `pyproject.toml` y generar `requirements.txt`**
+- [x] **Paso 2: Actualizar `pyproject.toml` y generar `requirements.txt`**
   Configurar `pythonpath = ["src"]` en la sección de pytest de `pyproject.toml` y fijar las dependencias de producción y pruebas. Generar `requirements.txt` con `pytest>=8.3.0`, `fastapi>=0.115.0`, `uvicorn>=0.32.0`, `pydantic>=2.9.0`.
 
-- [ ] **Paso 3: Ejecutar la suite de pruebas existente para verificar cero regresión**
+- [x] **Paso 3: Ejecutar la suite de pruebas existente para verificar cero regresión**
   Ejecutar: `pytest tests/ -v`  
   Salida esperada: 38 passed.
 
-- [ ] **Paso 4: Commit**
+- [x] **Paso 4: Commit**
   ```bash
   git add pyproject.toml requirements.txt src/ tests/
   git commit -m "refactor(dev1): move seir package into src/seir and verify test suite"
@@ -90,21 +90,21 @@
   def resolve_initial_infections(t_graph: TerritorialGraph, initial: dict[str, int], initial_ids: list[int] | None, rng: random.Random) -> frozenset[int]: ...
   ```
 
-- [ ] **Paso 1: Escribir pruebas unitarias en `tests/test_topology.py`**
+- [x] **Paso 1: Escribir pruebas unitarias en `tests/test_topology.py`**
   Validar que `SECTOR_ADJACENCY` conecte los 7 sectores, que cada nodo tenga un sector asignado, que los hubs tengan grado mayor al promedio, que las coordenadas estén en $[0, 100]^2$, y que `resolve_initial_infections` resuelva siembras multi-sectoriales (`initial: {"tarqui": 5, "los_esteros": 2}`).
 
-- [ ] **Paso 2: Ejecutar pruebas para verificar que fallen**
+- [x] **Paso 2: Ejecutar pruebas para verificar que fallen**
   Ejecutar: `pytest tests/test_topology.py -v`  
   Salida esperada: FAIL (módulo inexistente).
 
-- [ ] **Paso 3: Implementar `src/seir/topology.py`**
+- [x] **Paso 3: Implementar `src/seir/topology.py`**
   Implementar la clase `TerritorialGraph` con validaciones de invariantes en su constructor. Implementar `generate_manta_graph` generando enlaces densos intra-sectoriales, enlaces hacia hubs locales y puentes intersectoriales limítrofes según `SECTOR_ADJACENCY`.
 
-- [ ] **Paso 4: Ejecutar pruebas para verificar que pasen**
+- [x] **Paso 4: Ejecutar pruebas para verificar que pasen**
   Ejecutar: `pytest tests/test_topology.py -v`  
   Salida esperada: PASS.
 
-- [ ] **Paso 5: Commit**
+- [x] **Paso 5: Commit**
   ```bash
   git add src/seir/topology.py tests/test_topology.py
   git commit -m "feat(dev1): implement TerritorialGraph and procedural Manta network generator"
@@ -128,21 +128,21 @@
   - Seguimiento de vacunas pendientes (`d_vac`) con pérdida de dosis si el nodo se infecta antes de inmunizar.
   - Alistamiento de recuperados ($I \to R$) con $p_{\text{vol}} \in [0.10, 0.15]$ y riesgo ocupacional ($R \to E$) con $p_{\text{reinf}} \in [0.03, 0.05]$ si hay infectados en su sector.
 
-- [ ] **Paso 1: Escribir pruebas en `tests/test_volunteers.py` y `tests/test_engine.py`**
+- [x] **Paso 1: Escribir pruebas en `tests/test_volunteers.py` y `tests/test_engine.py`**
   Validar la reducción de susceptibilidad con $\eta=0.8$, pérdida de dosis al infectarse antes de cumplir `d_vac`, alistamiento de voluntarios y riesgo de reinfección condicional a casos en su sector.
 
-- [ ] **Paso 2: Ejecutar pruebas para verificar que fallen**
+- [x] **Paso 2: Ejecutar pruebas para verificar que fallen**
   Ejecutar: `pytest tests/test_volunteers.py -v`  
   Salida esperada: FAIL.
 
-- [ ] **Paso 3: Implementar cambios en `states.py` y `engine.py`**
+- [x] **Paso 3: Implementar cambios en `states.py` y `engine.py`**
   Agregar soporte para nodos vacunados y pendientes, cálculo de probabilidad leaky, sorteo determinista de voluntarios al recuperar y sorteo de reinfección ocupacional preservando el cálculo en instantánea simultánea.
 
-- [ ] **Paso 4: Ejecutar pruebas para verificar que pasen**
+- [x] **Paso 4: Ejecutar pruebas para verificar que pasen**
   Ejecutar: `pytest tests/test_volunteers.py tests/test_engine.py -v`  
   Salida esperada: PASS.
 
-- [ ] **Paso 5: Commit**
+- [x] **Paso 5: Commit**
   ```bash
   git add src/seir/states.py src/seir/engine.py tests/test_volunteers.py tests/test_engine.py
   git commit -m "feat(dev1): implement leaky vaccination, delay handling, and volunteer brigade dynamics"
@@ -178,21 +178,21 @@
   ) -> dict[str, Any]: ...
   ```
 
-- [ ] **Paso 1: Escribir pruebas en `tests/test_strategies.py`**
+- [x] **Paso 1: Escribir pruebas en `tests/test_strategies.py`**
   Validar cálculo de $R_0 = \beta \cdot \langle k \rangle / \gamma$, fórmula determinista de $K_t \in [15, 50]$ para $N=1000$, paridad estricta de dosis efectivamente administradas ($D_t^{\text{azar}} = D_t^{\text{propuesta}}$), cascada de 3 pasos (puentes $\to$ hubs $\to$ anillo $\to$ hubs preventivos), y que la estrategia propuesta supere al azar en el escenario benchmark fijado.
 
-- [ ] **Paso 2: Ejecutar pruebas para verificar que fallen**
+- [x] **Paso 2: Ejecutar pruebas para verificar que fallen**
   Ejecutar: `pytest tests/test_strategies.py -v`  
   Salida esperada: FAIL.
 
-- [ ] **Paso 3: Implementar `src/seir/strategies.py`**
+- [x] **Paso 3: Implementar `src/seir/strategies.py`**
   Implementar `compute_r0`, `compute_dynamic_quota`, la detección de sectores activos por carga ($I + 0.5E$), la ejecución emparejada de la estrategia propuesta (generando $[D_1, \dots, D_T]$) y el consumo idéntico de dosis por la línea base al azar con flujo pseudoaleatorio aislado (`"random_pick"`).
 
-- [ ] **Paso 4: Ejecutar pruebas para verificar que pasen**
+- [x] **Paso 4: Ejecutar pruebas para verificar que pasen**
   Ejecutar: `pytest tests/test_strategies.py -v`  
   Salida esperada: PASS.
 
-- [ ] **Paso 5: Commit**
+- [x] **Paso 5: Commit**
   ```bash
   git add src/seir/strategies.py tests/test_strategies.py
   git commit -m "feat(dev1): implement 3-step intervention protocol, strict dose parity baseline, and R0"
