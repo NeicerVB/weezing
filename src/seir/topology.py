@@ -1,5 +1,6 @@
 """Topología territorial de Manta y generador de red de contactos sobre grafos."""
 
+import math
 import random
 from dataclasses import dataclass
 from typing import Final
@@ -75,16 +76,42 @@ class TerritorialGraph:
             if not (0.0 <= x <= 100.0 and 0.0 <= y <= 100.0):
                 raise ValueError(f"Coordenadas ({x}, {y}) del nodo {i} fuera de [0, 100]^2")
 
+        # Precomputar índices por sector para rendimiento O(1)
+        nodes_by_sector: dict[str, list[int]] = {s: [] for s in SECTORS}
+        for i, s in enumerate(self.sectors):
+            nodes_by_sector[s].append(i)
+        object.__setattr__(self, "_nodes_by_sector", nodes_by_sector)
+
+        hubs_by_sector = {s: frozenset(h for h in self.hubs if self.sectors[h] == s) for s in SECTORS}
+        object.__setattr__(self, "_hubs_by_sector", hubs_by_sector)
+
+        boundary_by_sector: dict[str, frozenset[int]] = {}
+        for s in SECTORS:
+            boundary = set()
+            for node in nodes_by_sector[s]:
+                for neighbor in self.graph.neighbors(node):
+                    if self.sectors[neighbor] != s:
+                        boundary.add(node)
+                        break
+            boundary_by_sector[s] = frozenset(boundary)
+        object.__setattr__(self, "_boundary_by_sector", boundary_by_sector)
+
     def nodes_in_sector(self, sector: str) -> list[int]:
         """Devuelve los IDs de los nodos asignados a un sector."""
+        if hasattr(self, "_nodes_by_sector"):
+            return self._nodes_by_sector.get(sector, [])
         return [i for i, s in enumerate(self.sectors) if s == sector]
 
     def hubs_in_sector(self, sector: str) -> frozenset[int]:
         """Devuelve los nodos hub que pertenecen al sector."""
+        if hasattr(self, "_hubs_by_sector"):
+            return self._hubs_by_sector.get(sector, frozenset())
         return frozenset(h for h in self.hubs if self.sectors[h] == sector)
 
     def boundary_nodes(self, sector: str) -> frozenset[int]:
         """Nodos del sector que tienen al menos un enlace con otro sector."""
+        if hasattr(self, "_boundary_by_sector"):
+            return self._boundary_by_sector.get(sector, frozenset())
         boundary = set()
         for node in self.nodes_in_sector(sector):
             for neighbor in self.graph.neighbors(node):
@@ -138,20 +165,29 @@ def generate_manta_graph(n: int, average_degree: float, rng: random.Random) -> T
                 labels_list[node] = f"{formatted_sector} #{i}"
     labels = tuple(labels_list)
 
-    # 4. Generar coordenadas en [0, 100]^2
+    # 4. Generar coordenadas en [0, 100]^2 con distribución radial espaciada
     coords_list = [(0.0, 0.0) for _ in range(n)]
+    golden_angle = 2.399963229728653  # Ángulo áureo en radianes
     for s, nodes in sector_nodes.items():
         cx, cy = SECTOR_CENTERS[s]
+        k = len(nodes)
+        non_hub_idx = 0
         for node in nodes:
             if node in hubs:
                 coords_list[node] = (round(cx, 2), round(cy, 2))
             else:
-                # Jitter alrededor del centro del sector
+                # Consumir el mismo número de sorteos del RNG para preservar reproducibilidad estricta
                 jx = rng.uniform(-7.0, 7.0)
                 jy = rng.uniform(-7.0, 7.0)
-                x = min(98.0, max(2.0, cx + jx))
-                y = min(98.0, max(2.0, cy + jy))
+                # Dispersión en espiral áurea con separación garantizada
+                theta = non_hub_idx * golden_angle + (jx / 7.0) * 0.25
+                r = min(6.4, 1.2 + 5.2 * math.sqrt((non_hub_idx + 0.5) / max(1, k - 1)))
+                x = cx + r * math.cos(theta)
+                y = cy + r * math.sin(theta)
+                x = min(98.0, max(2.0, x))
+                y = min(98.0, max(2.0, y))
                 coords_list[node] = (round(x, 2), round(y, 2))
+                non_hub_idx += 1
     coords = tuple(coords_list)
 
     # 5. Generar aristas asegurando conectividad, hubs densos y puentes intersectoriales

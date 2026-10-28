@@ -106,7 +106,17 @@ class SeirEngine:
         self.cumulative = len(initial_state.e) + len(initial_state.i)
 
     def _counts(self) -> Counter[State]:
-        return Counter(self.state.values())
+        s = e = i = r = 0
+        for val in self.state.values():
+            if val is State.S:
+                s += 1
+            elif val is State.I:
+                i += 1
+            elif val is State.R:
+                r += 1
+            else:
+                e += 1
+        return Counter({State.S: s, State.E: e, State.I: i, State.R: r})
 
     def vaccinate(self, node: int, day: int) -> bool:
         """Intenta administrar una dosis al nodo en el día dado."""

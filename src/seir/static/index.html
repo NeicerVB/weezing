@@ -3,24 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Manta · Laboratorio de contención</title>
-  <link rel="stylesheet" href="/style.css?v=20261028-ux2">
-  <script src="/app.js?v=20261028-ux2" defer></script>
+  <title>Laboratorio de contención - Weezing</title>
+  <link rel="stylesheet" href="/style.css?v=20261028-ux4">
+  <script src="/app.js?v=20261028-ux4" defer></script>
 </head>
 <body>
   <header class="site-header">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">M<span>·</span></span><div><span class="eyebrow">SPOOKYTHON / TRACK B</span><h1>Manta<span class="brand-divider">/</span>Laboratorio de contención</h1></div></div>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">W<span>·</span></span><div><span class="brand-track">Spookython · Track B</span><h1>Laboratorio de contención - Weezing</h1></div></div>
     <p id="app-status" class="status-pill" data-state="ready" role="status" aria-live="polite">Listo para simular</p>
   </header>
-  <div class="intro"><div><p class="eyebrow">EXPLORA · COMPARA · CONTÉN</p><h2>Una ciudad. Tres estrategias.</h2><p>Ajusta el brote y observa cómo cambia la red de contactos de Manta.</p></div><span class="model-tag">SEIR <span>sobre grafos</span></span></div>
-  <p class="disclaimer"><strong>Simulación académica.</strong> Simulación computacional ficticia con fines académicos para el Spookython Hackathon. No constituye una predicción epidemiológica ni una recomendación sanitaria real.</p>
   <main class="layout">
     <section class="panel controls-panel" aria-labelledby="controls-heading">
-      <div class="section-title"><div><span class="eyebrow">CONFIGURACIÓN</span><h2 id="controls-heading">Diseña el escenario</h2></div><span class="step-tag">01</span></div>
-      <p class="panel-description">Los cambios se aplican automáticamente.</p>
+      <div class="section-title"><div><h2 id="controls-heading">Diseña el escenario</h2></div></div>
       <form id="controls">
         <div class="action-row"><button type="submit" id="simulate" class="primary-button">Generar simulación</button><button type="button" id="randomize" class="dice-button" aria-label="Generar escenario al azar" title="Cambiar parámetros al azar y simular"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.2"/><circle cx="16" cy="8" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="8" cy="16" r="1.2"/><circle cx="16" cy="16" r="1.2"/></svg></button></div>
-        <p id="scenario-note" class="scenario-note" role="status">Prueba el dado para descubrir un escenario nuevo.</p>
+        <p id="scenario-note" class="sr-only" role="status">Prueba el dado para descubrir un escenario nuevo.</p>
         <button id="toggle-parameters" type="button" class="parameter-toggle" aria-expanded="false" aria-controls="parameter-fields">Ver parámetros</button>
         <div id="parameter-fields" class="parameter-fields" data-open="false">
         <fieldset><legend>Red y transmisión</legend>
@@ -53,38 +50,53 @@
         </div>
       </form>
       <p id="error" role="alert" aria-live="assertive" hidden></p>
-      <p class="control-footnote">Misma semilla, mismo escenario. Recursos limitados, comparación con igualdad de dosis.</p>
     </section>
     <div class="results" id="workspace" aria-busy="false">
       <section class="overview" aria-labelledby="metrics-heading"><div class="overview-heading"><h2 id="metrics-heading">Resultado de la propuesta</h2><p id="results-context">Balance al finalizar el escenario</p></div>
         <div class="kpis">
-          <article class="kpi featured"><h3>Contagios evitados</h3><p id="avoided" aria-live="polite">—</p><span>frente a no intervenir</span></article>
-          <article class="kpi"><h3>Reproducción R₀</h3><p id="r0" aria-live="polite">—</p><span id="r0-meaning" aria-live="polite">Potencial inicial</span></article>
-          <article class="kpi"><h3>Dosis gastadas</h3><p id="doses" aria-live="polite">—</p><span>del stock disponible</span></article>
-          <article class="kpi"><h3>Pico de infección</h3><p id="peak" aria-live="polite">—</p><span>personas · día del pico</span></article>
-          <article class="kpi"><h3>Brigadistas</h3><p id="volunteers" aria-live="polite">—</p><span>activos al finalizar</span></article>
+          <article class="kpi featured"><h3>Contagios evitados</h3><p id="avoided" aria-live="polite">—</p></article>
+          <article class="kpi"><h3>Reproducción R₀</h3><p id="r0" aria-live="polite">—</p><span id="r0-meaning" class="sr-only" aria-live="polite">Potencial inicial</span></article>
+          <article class="kpi"><h3>Dosis gastadas</h3><p id="doses" aria-live="polite">—</p></article>
+          <article class="kpi"><h3>Pico de infección</h3><p id="peak" aria-live="polite">—</p></article>
+          <article class="kpi"><h3>Brigadistas</h3><p id="volunteers" aria-live="polite">—</p></article>
         </div>
       </section>
       <section class="panel map-panel" aria-labelledby="map-heading">
-        <div class="section-title"><div><span class="eyebrow">EVOLUCIÓN ESPACIAL · PROPUESTA</span><h2 id="map-heading">Red territorial</h2></div><span id="playback-status" class="map-badge">Preparando red</span></div>
-        <p id="map-status" role="status" aria-live="polite">Generaremos el primer escenario al abrir la página.</p>
-        <div class="map-surface"><svg id="map" viewBox="0 15 100 70" role="img" aria-label="Estados de la red territorial por sector"></svg>
+        <div class="section-title"><div><h2 id="map-heading">Red territorial</h2></div><span id="playback-status" class="map-badge">Preparando red</span></div>
+        <p id="map-status" class="sr-only" role="status" aria-live="polite">Generaremos el primer escenario al abrir la página.</p>
+        <div class="map-surface">
+          <div class="map-toolbar" role="toolbar" aria-label="Controles del mapa">
+            <button type="button" id="zoom-in" class="tool-btn" aria-label="Acercar mapa" title="Acercar">+</button>
+            <button type="button" id="zoom-out" class="tool-btn" aria-label="Alejar mapa" title="Alejar">−</button>
+            <button type="button" id="zoom-reset" class="tool-btn" aria-label="Restablecer vista del mapa" title="Restablecer vista">⟲</button>
+            <label class="bridge-filter" title="Ocultar conexiones dentro del mismo sector para ver puentes intersectoriales">
+              <input type="checkbox" id="filter-bridges"> Solo puentes clave
+            </label>
+          </div>
+          <svg id="map" viewBox="0 15 100 70" role="img" aria-label="Estados de la red territorial por sector"></svg>
           <div id="map-empty" class="map-empty"><span class="empty-orbit" aria-hidden="true">◎</span><strong id="map-empty-title">La ciudad está lista.</strong><span id="map-empty-copy">Genera un escenario para explorar su evolución.</span></div>
           <div id="map-loading" class="loading-overlay" hidden><span class="spinner" aria-hidden="true"></span><strong>Generando escenario…</strong><span id="loading-detail">Construyendo la red y comparando las tres estrategias.</span></div>
         </div>
         <div class="day-balance" aria-label="Población en el día seleccionado"><span class="node-s"><i aria-hidden="true">●</i> Susceptibles <strong id="map-count-s">—</strong></span><span class="node-e"><i aria-hidden="true">■</i> Expuestos <strong id="map-count-e">—</strong></span><span class="node-i"><i aria-hidden="true">▲</i> Infecciosos <strong id="map-count-i">—</strong></span><span class="node-r"><i aria-hidden="true">⊕</i> Recuperados <strong id="map-count-r">—</strong></span></div>
         <div class="playback"><div class="playback-buttons"><button id="play" type="button" class="small-button" disabled>Reproducir</button><button id="pause" type="button" class="quiet-button" disabled>Pausar</button><button id="restart" type="button" class="quiet-button" disabled title="Volver al día cero">Reiniciar</button></div><output id="day" for="timeline">Día 0</output><label for="speed" class="sr-only">Velocidad de reproducción</label><select id="speed" aria-label="Velocidad de reproducción"><option value="250">1×</option><option value="125">2×</option><option value="500">0,5×</option></select><label for="timeline" class="sr-only">Día de la animación</label><input id="timeline" type="range" min="0" max="0" value="0" disabled></div>
-        <ul class="legend map-legend" aria-label="Leyenda de estados"><li class="node-s">Círculo · S</li><li class="node-e">Cuadrado · E</li><li class="node-i">Triángulo · I</li><li class="node-r">Círculo con Cruz · R</li><li class="node-vol">Estrella · Brigadista</li></ul>
+        <ul class="legend map-legend sr-only" aria-label="Leyenda de estados"><li class="node-s">Círculo · S</li><li class="node-e">Cuadrado · E</li><li class="node-i">Triángulo · I</li><li class="node-r">Círculo con Cruz · R</li><li class="node-vol">Estrella · Brigadista</li></ul>
       </section>
       <section class="panel chart-panel" aria-labelledby="chart-heading">
-        <div class="section-title"><div><span class="eyebrow">COMPARACIÓN DE ESTRATEGIAS</span><h2 id="chart-heading">Tres caminos para el mismo brote</h2></div><button id="run-batch" type="button" class="secondary-button" disabled>Comparar 30 réplicas</button></div>
+        <div class="section-title"><div><h2 id="chart-heading">Tres caminos para el mismo brote</h2></div><button id="run-batch" type="button" class="secondary-button" disabled>Comparar 30 réplicas</button></div>
         <p id="monte-carlo-status" role="status">Curvas, tarjetas e informe corresponden a la semilla elegida.</p>
         <svg id="curve" viewBox="0 0 720 300" role="img" aria-label="Curvas de la propuesta, azar y sin intervención"></svg>
         <ul class="legend chart-legend"><li class="key-proposed">Propuesta</li><li class="key-random">Al azar</li><li class="key-none">Sin intervención</li></ul><p id="range-status" role="status">Ejecuta 30 réplicas para explorar el rango empírico de simulación (p2.5 - p97.5).</p>
       </section>
-      <section class="panel comparison-panel" aria-labelledby="table-heading"><div class="section-title"><div><span class="eyebrow">BALANCE FINAL</span><h2 id="table-heading">El impacto, en números</h2></div><span class="table-tag">Mismas dosis</span></div><div class="table-scroll"><table><caption class="sr-only">Métricas por estrategia</caption><thead><tr><th scope="col">Estrategia</th><th scope="col">Contagios acumulados</th><th scope="col">Pico de I</th><th scope="col">Dosis gastadas</th></tr></thead><tbody id="metrics-table"></tbody></table></div></section>
-      <details id="report" class="panel report-panel"><summary>Informe para el COE Cantonal <span>Simulación Académica</span></summary><div id="report-body" aria-live="polite">Ejecute la simulación para generar el informe.</div></details>
+      <section class="panel comparison-panel" aria-labelledby="table-heading"><div class="section-title"><div><h2 id="table-heading">El impacto, en números</h2></div><span class="table-tag">Mismas dosis</span></div><div class="table-scroll"><table><caption class="sr-only">Métricas por estrategia</caption><thead><tr><th scope="col">Estrategia</th><th scope="col">Contagios acumulados</th><th scope="col">Pico de I</th><th scope="col">Dosis gastadas</th></tr></thead><tbody id="metrics-table"></tbody></table></div></section>
+      <details id="report" class="report-panel-compact"><summary>Informe para el COE Cantonal <span>Simulación Académica</span></summary><div id="report-body" aria-live="polite">Ejecute la simulación para generar el informe.</div></details>
     </div>
-  </main><footer class="site-footer">MANTA · SPOOKYTHON 2026 <span>Red sintética de contactos · Python + SVG · Resultados reproducibles</span></footer>
+  </main>
+  <footer class="site-footer">
+    <div class="footer-left">
+      <strong>MANTA · SPOOKYTHON 2026</strong> · Weezing
+      <p class="disclaimer-text">Simulación computacional ficticia con fines académicos para el Spookython Hackathon. No constituye una predicción epidemiológica ni una recomendación sanitaria real.</p>
+    </div>
+    <span>Red sintética de contactos · Python + SVG · Resultados reproducibles</span>
+  </footer>
 </body>
 </html>

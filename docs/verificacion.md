@@ -44,8 +44,6 @@ una medición de AWS.
 
 La meta local de 800 ms se cumple en la muestra caliente sin limitar CPU; no
 se cumple con CPU limitado. La meta cloud ≤3 s aún requiere medida en AWS.
-Los resultados registrados están en [local-verification.json](local-verification.json)
-y [runtime-verification.json](runtime-verification.json).
 
 Con `Accept-Encoding: gzip`, en el contenedor se midieron 2.736 bytes para la
 respuesta normal y **28.692 bytes** con animación. El JSON de animación sin

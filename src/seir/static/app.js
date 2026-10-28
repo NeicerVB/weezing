@@ -21,6 +21,39 @@ let simulationBusy = false;
 let activeSimulationId = -1;
 let queuedSimulation = null;
 let chartCursor = null;
+const modifiedPoints = new Set();
+
+const MAP_DEFAULT_VB = { x: 0, y: 15, w: 100, h: 70 };
+let mapVb = { ...MAP_DEFAULT_VB };
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+let startVb = { ...mapVb };
+
+function updateMapViewBox() {
+  const map = field("map");
+  if (!map) return;
+  map.setAttribute("viewBox", `${mapVb.x.toFixed(2)} ${mapVb.y.toFixed(2)} ${mapVb.w.toFixed(2)} ${mapVb.h.toFixed(2)}`);
+}
+
+function zoomMap(factor, clientX, clientY) {
+  const map = field("map");
+  if (!map) return;
+  const rect = typeof map.getBoundingClientRect === "function" ? map.getBoundingClientRect() : null;
+  const mouseRatioX = rect && rect.width && Number.isFinite(clientX) ? (clientX - rect.left) / rect.width : 0.5;
+  const mouseRatioY = rect && rect.height && Number.isFinite(clientY) ? (clientY - rect.top) / rect.height : 0.5;
+  const newW = Math.max(15, Math.min(150, mapVb.w * factor));
+  const newH = Math.max(10.5, Math.min(105, mapVb.h * factor));
+  mapVb.x += (mapVb.w - newW) * mouseRatioX;
+  mapVb.y += (mapVb.h - newH) * mouseRatioY;
+  mapVb.w = newW;
+  mapVb.h = newH;
+  updateMapViewBox();
+}
+
+function resetMapView() {
+  mapVb = { ...MAP_DEFAULT_VB };
+  updateMapViewBox();
+}
 
 function appStatus(text, state = "ready") {
   field("app-status").textContent = text;
@@ -211,7 +244,8 @@ function drawCurves(data) {
 function symbol(id, x, y, state) {
   const stateClass = { S: "s", E: "e", I: "i", R: "r", V: "vol" };
   const common = { class: `node-${stateClass[state] || "s"}`,
-    "data-node-id": id };
+    "data-node-id": id,
+    role: "img" };
   let node;
   if (state === "E") node = svgNode("rect", { ...common, x: x - .5, y: y - .5, width: 1, height: 1 });
   else if (state === "I") node = svgNode("polygon", { ...common,
@@ -230,6 +264,7 @@ function symbol(id, x, y, state) {
 }
 
 function paintPoint(point, state) {
+  if (point.visualState === state && (point.group.children?.length || point.group.childNodes?.length)) return;
   point.visualState = state;
   point.group.replaceChildren(symbol(point.id, point.x, point.y, state));
   if (state === "R") {
@@ -277,12 +312,18 @@ function updateDay() {
 
 function seek(day) {
   stop();
-  for (const point of points.values()) paintPoint(point, point.state);
+  for (const point of modifiedPoints) {
+    paintPoint(point, point.state);
+  }
+  modifiedPoints.clear();
   for (const frame of frames) {
     if (frame.day > day) break;
     for (const change of frame.changed) {
       const point = points.get(change.id);
-      if (point) paintPoint(point, change.state);
+      if (point) {
+        paintPoint(point, change.state);
+        if (change.state !== point.state) modifiedPoints.add(point);
+      }
     }
   }
   currentDay = day;
@@ -295,7 +336,10 @@ function nextFrame() {
   if (!frame) { stop(); return; }
   for (const change of frame.changed) {
     const point = points.get(change.id);
-    if (point) paintPoint(point, change.state);
+    if (point) {
+      paintPoint(point, change.state);
+      if (change.state !== point.state) modifiedPoints.add(point);
+    }
   }
   currentDay = frame.day;
   updateDay();
@@ -317,12 +361,27 @@ field("play").addEventListener("click", startPlayback);
 field("pause").addEventListener("click", stop);
 field("restart").addEventListener("click", () => seek(0));
 field("speed").addEventListener("change", () => { if (playback !== null) startPlayback(); });
-field("timeline").addEventListener("input", () => seek(Number(field("timeline").value)));
+
+let seekRaf = null;
+field("timeline").addEventListener("input", () => {
+  const targetDay = Number(field("timeline").value);
+  if (typeof requestAnimationFrame === "function") {
+    if (seekRaf) cancelAnimationFrame(seekRaf);
+    seekRaf = requestAnimationFrame(() => {
+      seek(targetDay);
+      seekRaf = null;
+    });
+  } else {
+    seek(targetDay);
+  }
+});
 
 function drawMap(data) {
   stop();
   frames = Array.isArray(data.frames) ? data.frames : [];
   points = new Map();
+  modifiedPoints.clear();
+  resetMapView();
   const map = field("map");
   map.replaceChildren();
   const graph = data.graph;
@@ -344,13 +403,18 @@ function drawMap(data) {
       const [source, target] = edge;
       const from = byId.get(source);
       const to = byId.get(target);
-      if (from && to) map.appendChild(svgNode("line", {
-        x1: from.x, y1: from.y, x2: to.x, y2: to.y, class: "edge",
-      }));
+      if (from && to) {
+        const isBridge = from.sector && to.sector && from.sector !== to.sector;
+        map.appendChild(svgNode("line", {
+          x1: from.x, y1: from.y, x2: to.x, y2: to.y,
+          class: isBridge ? "edge edge-bridge" : "edge edge-internal",
+          "data-bridge": isBridge ? "true" : "false",
+        }));
+      }
     }
-    for (const { id, x, y, state, label: nodeLabel } of graph.nodes) {
+    for (const { id, x, y, state, sector, label: nodeLabel } of graph.nodes) {
       const group = svgNode("g");
-      const point = { id, x, y, state, group, label: nodeLabel };
+      const point = { id, x, y, state, sector, group, label: nodeLabel };
       points.set(id, point);
       paintPoint(point, state);
       map.appendChild(group);
@@ -487,3 +551,45 @@ field("toggle-parameters").addEventListener("click", () => {
   field("toggle-parameters").setAttribute("aria-expanded", String(open));
   field("toggle-parameters").textContent = open ? "Ocultar parámetros" : "Ver parámetros";
 });
+
+const btnZoomIn = field("zoom-in");
+if (btnZoomIn) btnZoomIn.addEventListener("click", () => zoomMap(0.8));
+const btnZoomOut = field("zoom-out");
+if (btnZoomOut) btnZoomOut.addEventListener("click", () => zoomMap(1.25));
+const btnZoomReset = field("zoom-reset");
+if (btnZoomReset) btnZoomReset.addEventListener("click", resetMapView);
+const filterBridges = field("filter-bridges");
+if (filterBridges) filterBridges.addEventListener("change", (e) => {
+  const map = field("map");
+  if (map) map.setAttribute("data-filter-bridges", e.target?.checked || filterBridges.checked ? "true" : "false");
+});
+
+const mapEl = field("map");
+if (mapEl) {
+  mapEl.addEventListener("wheel", (e) => {
+    if (e.preventDefault) e.preventDefault();
+    const factor = (e.deltaY || 0) < 0 ? 0.85 : 1.15;
+    zoomMap(factor, e.clientX, e.clientY);
+  });
+  mapEl.addEventListener("mousedown", (e) => {
+    if (e.button && e.button !== 0) return;
+    isPanning = true;
+    panStart = { x: e.clientX || 0, y: e.clientY || 0 };
+    startVb = { ...mapVb };
+  });
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("mousemove", (e) => {
+    if (!isPanning || !mapEl) return;
+    const rect = typeof mapEl.getBoundingClientRect === "function" ? mapEl.getBoundingClientRect() : null;
+    if (!rect || !rect.width || !rect.height) return;
+    const dx = (e.clientX - panStart.x) * (startVb.w / rect.width);
+    const dy = (e.clientY - panStart.y) * (startVb.h / rect.height);
+    mapVb.x = startVb.x - dx;
+    mapVb.y = startVb.y - dy;
+    updateMapViewBox();
+  });
+  window.addEventListener("mouseup", () => {
+    isPanning = false;
+  });
+}
