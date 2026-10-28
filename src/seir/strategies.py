@@ -205,8 +205,6 @@ def run_paired_simulation(
         mod = engine.modifiers[node]
         if mod.is_volunteer:
             return "V_brigade"
-        if mod.is_vaccinated:
-            return "V"
         return engine.state[node].value
 
     prev_visual_states = [node_visual_state(engine_prop, u) for u in range(n)] if include_frames else []

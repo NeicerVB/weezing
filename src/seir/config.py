@@ -2,8 +2,69 @@
 
 import random
 from dataclasses import dataclass
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .states import State
+
+
+class RequestModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
+
+
+class InterventionConfig(RequestModel):
+    mode: Literal["dynamic", "static"] = "dynamic"
+    efficacy: float = Field(default=.8, ge=0, le=1)
+    delay: int = Field(default=0, ge=0, le=90)
+    quota: int = Field(default=30, ge=0, le=2000)
+    k_max: int | None = Field(default=None, ge=0, le=800)
+
+
+class VolunteersConfig(RequestModel):
+    enlist: float = Field(default=.12, ge=0, le=1)
+    reinfection: float = Field(default=.04, ge=0, le=1)
+
+
+class SimulateRequest(RequestModel):
+    n: int = Field(default=1000, ge=7, le=2000)
+    days: int = Field(default=60, ge=0, le=90)
+    seed: int = Field(default=42, ge=0, le=2**32 - 101)
+    beta: float = Field(default=.03, ge=0, le=1)
+    sigma: float = Field(default=.2, ge=0, le=1)
+    gamma: float = Field(default=.1, ge=0, le=1)
+    degree: float = Field(default=8, ge=0, le=50)
+    initial: dict[str, int] = Field(default_factory=lambda: {"tarqui": 10})
+    initial_ids: list[int] | None = None
+    intervention: InterventionConfig = Field(default_factory=InterventionConfig)
+    volunteers: VolunteersConfig = Field(default_factory=VolunteersConfig)
+    include_frames: bool = False
+
+    @model_validator(mode="after")
+    def validate_territory(self):
+        from .topology import SECTORS
+        if self.degree > self.n - 1:
+            raise ValueError("degree no puede superar n - 1")
+        if self.intervention.k_max is None:
+            self.intervention.k_max = int(.4 * self.n)
+        if self.intervention.k_max > int(.4 * self.n):
+            raise ValueError("k_max no puede superar 0.40 N")
+        for sector, count in self.initial.items():
+            if sector not in SECTORS or count < 0:
+                raise ValueError("Sector o número de infectados inválido")
+        if self.initial_ids is not None:
+            if len(set(self.initial_ids)) != len(self.initial_ids):
+                raise ValueError("initial_ids contiene duplicados")
+            if any(not 0 <= node < self.n for node in self.initial_ids):
+                raise ValueError("initial_ids fuera de rango")
+        elif sum(self.initial.values()) > self.n:
+            raise ValueError("Los infectados iniciales superan N")
+        return self
+
+
+class BatchRequest(RequestModel):
+    base: SimulateRequest = Field(default_factory=SimulateRequest)
+    replicas: int = Field(default=30, ge=1, le=100)
 
 
 @dataclass(frozen=True)

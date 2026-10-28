@@ -16,15 +16,19 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=8.3.0",
+    "httpx>=0.28.1",
 ]
 
 [project.scripts]
 weezing-seir = "seir.cli:main"
-weezing-web = "seir.web:main"
+weezing-web = "seir.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["seir*"]
+
+[tool.setuptools.package-data]
+seir = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
