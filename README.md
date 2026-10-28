@@ -176,7 +176,7 @@ El proyecto implementa las capacidades avanzadas de la rúbrica oficial:
 ### Componentes y Delimitación de Acceso
 
 1. **Capa Pública:**
-   - **ALB / Ingress Gateway (Puerto 8000):** Punto de entrada HTTPS con terminación TLS y enrutamiento hacia la aplicación FastAPI.
+   - **ALB / Ingress Gateway (HTTPS 443 → contenedor 8000):** Punto de entrada público con terminación TLS y enrutamiento hacia la aplicación FastAPI.
    - **Frontend Command Center:** HTML5/CSS3/Vanilla JS servido como estáticos optimizados (<50 KB comprimidos vía Gzip).
 2. **Capa Privada / Núcleo de Cómputo:**
    - **FastAPI ASGI Server:** Endpoints `/health`, `/api/simulate` y `/api/batch`.
