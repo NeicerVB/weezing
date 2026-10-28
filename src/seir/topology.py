@@ -195,7 +195,10 @@ def generate_manta_graph(n: int, average_degree: float, rng: random.Random) -> T
                 add_edge(hub, target)
 
     # D. Agregar aristas adicionales hasta alcanzar el grado medio objetivo
-    max_possible_edges = n * (n - 1) // 2
+    # El grado solicitado se satura en las aristas territorialmente posibles;
+    # nunca se inventan conexiones entre sectores no adyacentes.
+    max_possible_edges = sum(len(nodes) * (len(nodes) - 1) // 2 for nodes in sector_nodes.values())
+    max_possible_edges += sum(len(sector_nodes[a]) * len(sector_nodes[b]) for a, b in SECTOR_ADJACENCY)
     target_edges = min(max_possible_edges, round(n * average_degree / 2))
 
     # Lista de nodos por sector y sectores adyacentes para muestreo eficiente
@@ -223,12 +226,18 @@ def generate_manta_graph(n: int, average_degree: float, rng: random.Random) -> T
                 v = rng.choice(sector_nodes[sec2])
                 add_edge(u, v)
 
-    # Si aún no alcanza (en grafos muy densos), intentar con pares aleatorios generales
-    while len(edges) < target_edges and attempts < max_attempts * 2:
-        attempts += 1
-        u = rng.randint(0, n - 1)
-        v = rng.randint(0, n - 1)
-        add_edge(u, v)
+    # Cerca de la saturación, completar sin intentos aleatorios inútiles ni
+    # desbordar la adyacencia explícita de Manta.
+    if len(edges) < target_edges:
+        allowed = {frozenset(pair) for pair in SECTOR_ADJACENCY}
+        for u in range(n):
+            if len(edges) >= target_edges:
+                break
+            for v in range(u + 1, n):
+                if sectors[u] == sectors[v] or frozenset((sectors[u], sectors[v])) in allowed:
+                    add_edge(u, v)
+                if len(edges) >= target_edges:
+                    break
 
     base_graph = Graph.from_edges(n, edges)
     return TerritorialGraph(
@@ -248,7 +257,7 @@ def resolve_initial_infections(
 ) -> frozenset[int]:
     """Resuelve el conjunto inicial de infectados según IDs explícitos o diccionario multi-sectorial."""
     n = t_graph.graph.n
-    if initial_ids is not None and len(initial_ids) > 0:
+    if initial_ids is not None:
         for node_id in initial_ids:
             if not isinstance(node_id, int) or not (0 <= node_id < n):
                 raise ValueError(f"initial_id {node_id} fuera de rango [0, {n})")

@@ -8,7 +8,49 @@ from seir.strategies import (
     compute_r0,
     run_paired_simulation,
 )
-from seir.topology import generate_manta_graph
+from seir.topology import SECTORS, TerritorialGraph, generate_manta_graph
+from seir.graph import Graph
+from seir.engine import SeirEngine
+from seir.config import InitialState
+from seir.strategies import _select_proposed_candidates
+
+
+def test_zero_infection_edge_case():
+    graph = generate_manta_graph(70, 6, random.Random(42))
+    config = SimulationConfig(n=70, beta=.03, sigma=.2, gamma=.1, days=20)
+    data = run_paired_simulation(graph, config, frozenset(), "dynamic", 30, 28, .8, 3, .12, .04)
+    for strategy in data["strategies"].values():
+        assert strategy["metrics"]["doses_spent"] == 0
+        for row in strategy["days"]:
+            assert (row["s"], row["e"], row["i"], row["r"], row["cumulative"]) == (70, 0, 0, 0, 0)
+    assert data["meta"]["r0"] >= 0  # R0 depende de beta/grado/gamma, no del I0.
+
+
+def test_susceptible_depletion_cascades_to_hubs():
+    graph = TerritorialGraph(
+        graph=Graph.from_edges(11, [(0,1),(0,2),(0,3),(1,4),(4,5),(4,6),(0,7),(7,8),(7,9),(9,10)]),
+        sectors=("tarqui",)*4 + ("eloy_alfaro",)*2 + tuple(SECTORS[2:]),
+        hubs=frozenset({2,4,6,7,8,9,10}), labels=tuple(str(i) for i in range(11)),
+        coords=tuple((float(i), 0.) for i in range(11)))
+    config = SimulationConfig(n=11, beta=0, sigma=0, gamma=0, i0=1)
+    engine = SeirEngine(graph.graph, config, InitialState(frozenset(),frozenset({0}),frozenset()),graph)
+    chosen = _select_proposed_candidates(graph, engine, 20)
+    assert chosen[:2] == [1, 2]  # frontera y hub interno
+    assert chosen.index(3) < chosen.index(4)  # anillo antes que hub preventivo
+    assert 4 in chosen  # reinversión en hub de otro sector
+    assert 5 not in chosen  # no gastar sobrantes en un nodo arbitrario sin prioridad
+    assert len(chosen) == len(set(chosen)) == 9
+
+
+def test_avoided_infections_preserves_negative_paired_difference():
+    from seir.app import simulate_request
+    data = simulate_request({"n":70,"days":60,"seed":121,"beta":.03,
+        "initial":{"tarqui":1},"intervention":{"mode":"static","quota":1,"k_max":28}})
+    none = data["strategies"]["none"]["metrics"]["cumulative_infections"]
+    assert data["strategies"]["random"]["metrics"]["avoided_infections"] == -5
+    for strategy in data["strategies"].values():
+        metrics = strategy["metrics"]
+        assert metrics["avoided_infections"] == none - metrics["cumulative_infections"]
 
 
 class StrategyTests(unittest.TestCase):

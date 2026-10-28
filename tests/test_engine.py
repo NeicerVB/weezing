@@ -1,7 +1,51 @@
 import random
 import unittest
+from dataclasses import replace
 
 from seir import Graph, SeirEngine, SimulationConfig, resolve_initial_sets, simulate
+from seir.config import InitialState
+from seir.states import State
+from seir.rng import event_uniform
+
+
+def test_delayed_vaccine_lost_upon_infection():
+    graph = Graph.from_edges(2, [(0, 1)])
+    config = SimulationConfig(n=2, beta=0, sigma=0, gamma=0, delay=3, i0=1, efficacy=1)
+    initial = InitialState(e=frozenset(), i=frozenset({0}), r=frozenset())
+    engine = SeirEngine(graph, config, initial)
+    assert engine.vaccinate(1, day=0)
+    assert not engine.vaccinate(1, day=0)
+    engine.step(1)
+    assert engine.modifiers[1].is_pending
+    engine.config = replace(config, beta=1)
+    engine.step(2)
+    assert engine.state[1] is State.E
+    assert not engine.modifiers[1].is_pending
+    engine.step(3)
+    assert not engine.modifiers[1].is_vaccinated
+    assert sum(engine.doses_by_day.values()) == 1
+
+
+def test_leaky_vaccine_with_two_infectious_contacts():
+    graph = Graph.from_edges(3, [(0,2),(1,2)])
+    initial = InitialState(frozenset(), frozenset({0,1}), frozenset())
+    for seed in range(100):
+        config = SimulationConfig(n=3, beta=.5, sigma=0, gamma=0, efficacy=.8, seed=seed)
+        engine = SeirEngine(graph, config, initial)
+        engine.vaccinate(2, day=0)
+        # Dos contactos: susceptibilidad residual 0.1 por enlace -> 0.19 total.
+        expected = int(event_uniform(seed, 1, 2, "s2e") < .19)
+        assert engine.step(1).new_s_to_e == expected
+
+
+def test_exposed_nodes_do_not_transmit_before_next_snapshot():
+    graph = Graph.from_edges(2, [(0,1)])
+    config = SimulationConfig(n=2, beta=1, sigma=1, gamma=0)
+    engine = SeirEngine(graph, config, InitialState(frozenset({0}),frozenset(),frozenset()))
+    first = engine.step(1)
+    assert (first.s, first.e, first.i, first.new_s_to_e) == (1,0,1,0)
+    second = engine.step(2)
+    assert (second.s, second.e, second.i, second.new_s_to_e) == (0,1,1,1)
 
 
 def seeded_graph(n, degree, seed):

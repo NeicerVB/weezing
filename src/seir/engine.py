@@ -231,7 +231,7 @@ class SeirEngine:
             e=counts[State.E],
             i=counts[State.I],
             r=counts[State.R],
-            new_s_to_e=new_infections,
+            new_s_to_e=len(to_exposed),
             cumulative=self.cumulative,
             doses_administered=self.doses_by_day.get(day, 0),
             active_volunteers=active_volunteers,

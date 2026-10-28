@@ -2,6 +2,7 @@
 
 import random
 import unittest
+from dataclasses import replace
 from seir.config import InitialState, SimulationConfig
 from seir.engine import DayRecord, SeirEngine, simulate
 from seir.graph import Graph
@@ -131,3 +132,44 @@ class VolunteerAndVaccineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_volunteer_zero_reinfection_in_inactive_sector():
+    graph = generate_manta_graph(70, 6, random.Random(42))
+    infected = graph.nodes_in_sector("tarqui")[0]
+    volunteer = graph.nodes_in_sector("san_mateo")[0]
+    config = SimulationConfig(n=70, beta=0, sigma=0, gamma=0, p_vol=0, p_reinf=1)
+    engine = SeirEngine(graph.graph, config,
+        InitialState(frozenset(), frozenset({infected}), frozenset({volunteer})), graph)
+    engine.modifiers[volunteer].is_volunteer = True
+    engine.modifiers[volunteer].enlistment_count = 1
+    for day in range(1, 31):
+        row = engine.step(day)
+        assert engine.state[volunteer] is State.R
+        assert row.volunteer_reinfections == 0
+
+
+def test_volunteer_lifecycle_allows_at_most_one_reenlistment():
+    graph = Graph.from_edges(2, [(0, 1)])
+    config = SimulationConfig(n=2, beta=0, sigma=1, gamma=1, p_vol=1, p_reinf=0)
+    engine = SeirEngine(graph, config, InitialState(frozenset(), frozenset({0,1}), frozenset()))
+    engine.step(1)
+    assert engine.modifiers[0].enlistment_count == 1
+    for index in range(2):
+        # Fuente ocupacional controlada: un caso activo durante cada exposición.
+        engine.state[1] = State.I
+        engine.modifiers[1].is_volunteer = False
+        engine.config = replace(config, gamma=0, p_reinf=1)
+        row = engine.step(2 + index * 3)
+        assert engine.state[0] is State.E
+        assert not engine.modifiers[0].is_volunteer
+        assert row.volunteer_reinfections == 1
+        assert row.new_s_to_e == 0  # R->E no es S->E.
+        engine.config = replace(config, gamma=0)
+        engine.step(3 + index * 3)
+        assert engine.state[0] is State.I
+        engine.config = config
+        engine.step(4 + index * 3)
+        assert engine.state[0] is State.R
+    assert engine.modifiers[0].enlistment_count == 2
+    assert not engine.modifiers[0].is_volunteer

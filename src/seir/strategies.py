@@ -52,6 +52,8 @@ def _select_proposed_candidates(
         sector_loads[s] = i_count + 0.5 * e_count
 
     active_sectors = [s for s in SECTORS if sector_loads[s] > 0]
+    if not active_sectors:
+        return []
     # Desempate determinista por carga desc, nombre asc
     active_sectors.sort(key=lambda s: (-sector_loads[s], s))
 
@@ -122,18 +124,6 @@ def _select_proposed_candidates(
             try_add(u)
             if len(selected) >= quota:
                 return selected
-
-    # Si aún resta cuota, vacunar nodos susceptibles de mayor centralidad global
-    if len(selected) < quota:
-        remaining = [
-            u for u in t_graph.graph.nodes
-            if u not in seen and _is_eligible_for_vaccine(engine, u)
-        ]
-        remaining.sort(key=lambda u: (-t_graph.graph.degree(u), u))
-        for u in remaining:
-            try_add(u)
-            if len(selected) >= quota:
-                break
 
     return selected
 
@@ -277,7 +267,7 @@ def run_paired_simulation(
             "cumulative_infections": cum_inf,
             "peak_i": peak_i,
             "peak_day": peak_day,
-            "avoided_infections": max(0, avoided),
+            "avoided_infections": avoided,
         }
         if is_prop:
             metrics["active_volunteers"] = records[-1].active_volunteers
