@@ -1,2 +1,170 @@
-<?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net"><diagram name="Manta Dev3"><mxGraphModel dx="1300" dy="640" grid="1" page="1" pageWidth="1300" pageHeight="640"><root><mxCell id="0" /><mxCell id="1" parent="0" /><mxCell id="browser" value="Navegador público&lt;br&gt;HTML + JS + SVG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e2e8f0;fontSize=18;" vertex="1" parent="1"><mxGeometry as="geometry" x="40" y="170" width="210" height="95" /></mxCell><mxCell id="alb" value="ALB / HTTPS&lt;br&gt;ECS Express Mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fed7aa;fontSize=18;" vertex="1" parent="1"><mxGeometry as="geometry" x="320" y="170" width="220" height="95" /></mxCell><mxCell id="ecs" value="ECS Fargate · privado&lt;br&gt;FastAPI :8000 /health&lt;br&gt;Motor SEIR + ProcessPool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bfdbfe;fontSize=18;" vertex="1" parent="1"><mxGeometry as="geometry" x="620" y="150" width="290" height="135" /></mxCell><mxCell id="cw" value="CloudWatch&lt;br&gt;Logs de contenedor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ddd6fe;fontSize=18;" vertex="1" parent="1"><mxGeometry as="geometry" x="1010" y="170" width="220" height="95" /></mxCell><mxCell id="sfn" value="Step Functions Express&lt;br&gt;Inline Map · opcional" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ccfbf1;fontSize=18;" vertex="1" parent="1"><mxGeometry as="geometry" x="350" y="410" width="250" height="95" /></mxCell><mxCell id="lambda" value="Lambda Python 3.12&lt;br&gt;Réplicas y agregación" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ccfbf1;fontSize=18;" vertex="1" parent="1"><mxGeometry as="geometry" x="720" y="410" width="260" height="95" /></mxCell><mxCell id="budget" value="AWS Budgets · global&lt;br&gt;USD 5 / mes&lt;br&gt;Correo pendiente de verificar" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;fontSize=18;" vertex="1" parent="1"><mxGeometry as="geometry" x="1010" y="390" width="240" height="130" /></mxCell><mxCell id="edge0" style="endArrow=classic;html=1;" edge="1" parent="1" source="browser" target="alb"><mxGeometry as="geometry" relative="1" /></mxCell><mxCell id="edge1" style="endArrow=classic;html=1;" edge="1" parent="1" source="alb" target="ecs"><mxGeometry as="geometry" relative="1" /></mxCell><mxCell id="edge2" style="endArrow=classic;html=1;" edge="1" parent="1" source="ecs" target="cw"><mxGeometry as="geometry" relative="1" /></mxCell><mxCell id="edge3" style="endArrow=classic;html=1;" edge="1" parent="1" source="sfn" target="lambda"><mxGeometry as="geometry" relative="1" /></mxCell></root></mxGraphModel></diagram></mxfile>
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-10-28T08:35:00.000Z" agent="Antigravity" version="24.0.0" type="device">
+  <diagram name="Arquitectura SpookyThon SEIR" id="spookython-system">
+    <mxGraphModel dx="1500" dy="950" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1520" pageHeight="980" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- CONTENEDOR 1: CLIENTE -->
+        <mxCell id="zone_client" value="1. Cliente / Frontend (Navegador Web)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#0284C7;fontStyle=1;fontSize=14;fontColor=#0369A1;rounded=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="30" y="80" width="280" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="client_browser" value="&lt;b&gt;Dashboard Táctico&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #475569;&quot;&gt;HTML5 + CSS3 + Vanilla JS&lt;br&gt;Interactividad y Controles&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=13;fontColor=#0F172A;" vertex="1" parent="zone_client">
+          <mxGeometry x="25" y="50" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="client_map" value="&lt;b&gt;Mapa Territorial SVG&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #475569;&quot;&gt;7 Sectores de Manta, Ecuador&lt;br&gt;Visualización de Infección en Vivo&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=12;fontColor=#0F172A;" vertex="1" parent="zone_client">
+          <mxGeometry x="25" y="160" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="client_charts" value="&lt;b&gt;Curvas Epidemiológicas&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #475569;&quot;&gt;Comparativa: Sin Intervención /&lt;br&gt;Aleatoria / Propuesta + Brigadistas&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=12;fontColor=#0F172A;" vertex="1" parent="zone_client">
+          <mxGeometry x="25" y="270" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="client_export" value="&lt;b&gt;Reproducción y Métricas&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #475569;&quot;&gt;Playback temporal, Dosis,&lt;br&gt;Contagios Evitados y Picos&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=12;fontColor=#0F172A;" vertex="1" parent="zone_client">
+          <mxGeometry x="25" y="370" width="230" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- CONTENEDOR 2: AWS REGION -->
+        <mxCell id="zone_aws" value="2. Amazon Web Services (Región us-east-2)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#EA580C;fontStyle=1;fontSize=15;fontColor=#C2410C;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="340" y="40" width="1150" height="900" as="geometry" />
+        </mxCell>
+
+        <!-- SUBZONA: ACCESO Y RED -->
+        <mxCell id="sub_ingress" value="Capa de Red y Entrada" style="swimlane;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FB923C;fontStyle=1;fontSize=13;fontColor=#9A3412;rounded=1;" vertex="1" parent="zone_aws">
+          <mxGeometry x="30" y="50" width="250" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="alb" value="&lt;b&gt;AWS ALB (Express Gateway)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #7C2D12;&quot;&gt;Terminación HTTPS (Puerto 443)&lt;br&gt;Certificado ACM y DNS Público&lt;br&gt;Balanceo a Tareas Fargate&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#EA580C;fontSize=12;fontColor=#0F172A;" vertex="1" parent="sub_ingress">
+          <mxGeometry x="20" y="45" width="210" height="105" as="geometry" />
+        </mxCell>
+
+        <!-- SUBZONA: SERVICIO WEB ECS -->
+        <mxCell id="sub_ecs" value="Servicio Web Principal (Amazon ECS Express Mode / Fargate)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#60A5FA;fontStyle=1;fontSize=13;fontColor=#1D4ED8;rounded=1;" vertex="1" parent="zone_aws">
+          <mxGeometry x="310" y="50" width="430" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="fastapi" value="&lt;b&gt;Servidor Web FastAPI / Uvicorn&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #1E3A8A;&quot;&gt;Puerto 8000 | 256 CPU / 512 MiB&lt;br&gt;&lt;b&gt;Endpoints:&lt;/b&gt; /, /health, /api/simulate, /api/batch&lt;br&gt;Gestión de CORS y Archivos Estáticos&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#2563EB;fontSize=12;fontColor=#0F172A;" vertex="1" parent="sub_ecs">
+          <mxGeometry x="25" y="45" width="380" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="seir_engine" value="&lt;b&gt;Motor Epidemiológico SEIR (Local)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #334155;&quot;&gt;&amp;bull; &lt;b&gt;Topología:&lt;/b&gt; 7 Sectores, 14 Puentes Inter-sectoriales&lt;br&gt;&amp;bull; &lt;b&gt;Dinámica:&lt;/b&gt; Estados S-E-I-R con Probabilidad Estocástica&lt;br&gt;&amp;bull; &lt;b&gt;Estrategias:&lt;/b&gt; Ninguna, Aleatoria, Propuesta de Grados&lt;br&gt;&amp;bull; &lt;b&gt;Voluntarios:&lt;/b&gt; Brigadas activas y reinfección&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;fontSize=11;fontColor=#0F172A;align=left;spacingLeft=10;" vertex="1" parent="sub_ecs">
+          <mxGeometry x="25" y="160" width="380" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="process_pool" value="&lt;b&gt;ProcessPoolExecutor (Local Fallback)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #92400E;&quot;&gt;Ejecución multi-proceso de réplicas en local&lt;br&gt;Respaldo automático si la nube no está activa&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=12;fontColor=#0F172A;strokeWidth=1;strokeDasharray=3 3;" vertex="1" parent="sub_ecs">
+          <mxGeometry x="25" y="315" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="health_check" value="&lt;b&gt;Health Check (/health)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px; color: #047857;&quot;&gt;Intervalo 30s | Monitoreo ALB&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#059669;fontSize=11;fontColor=#064E3B;" vertex="1" parent="sub_ecs">
+          <mxGeometry x="25" y="410" width="380" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- SUBZONA: SERVERLESS MONTE CARLO -->
+        <mxCell id="sub_serverless" value="Cómputo Distribuido Monte Carlo (AWS Step Functions + Lambda)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#F0FDFA;strokeColor=#2DD4BF;fontStyle=1;fontSize=13;fontColor=#0F766E;rounded=1;" vertex="1" parent="zone_aws">
+          <mxGeometry x="30" y="550" width="710" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="sfn" value="&lt;b&gt;Step Functions Express&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #115E59;&quot;&gt;Spookython-Simulation-Express&lt;br&gt;Invocación Sync (StartSyncExecution)&lt;br&gt;Lógica JSONata Declarativa&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CCFBF1;strokeColor=#0D9488;fontSize=12;fontColor=#0F172A;" vertex="1" parent="sub_serverless">
+          <mxGeometry x="20" y="45" width="260" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="sfn_map" value="&lt;b&gt;Estado Inline Map&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #115E59;&quot;&gt;Paralelismo con concurrencia 10&lt;br&gt;Distribución de semillas (seed+i)&lt;br&gt;Lanza N réplicas simultáneas&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CCFBF1;strokeColor=#0D9488;fontSize=12;fontColor=#0F172A;" vertex="1" parent="sub_serverless">
+          <mxGeometry x="320" y="45" width="360" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="lambda_worker" value="&lt;b&gt;AWS Lambda Worker&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #115E59;&quot;&gt;Spookython-MonteCarlo-Worker&lt;br&gt;Python 3.12 (Paquete SEIR Linux)&lt;br&gt;Simulación Monte Carlo aislada&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CCFBF1;strokeColor=#0D9488;fontSize=12;fontColor=#0F172A;" vertex="1" parent="sub_serverless">
+          <mxGeometry x="20" y="185" width="260" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="sfn_reduce" value="&lt;b&gt;Tarea de Agregación (Reduce)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #115E59;&quot;&gt;Consolidación de métricas de réplicas:&lt;br&gt;Media, p2.5, p97.5, Mínimo y Máximo&lt;br&gt;Retorno ultra-rápido en una sola carga&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CCFBF1;strokeColor=#0D9488;fontSize=12;fontColor=#0F172A;" vertex="1" parent="sub_serverless">
+          <mxGeometry x="320" y="185" width="360" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- SUBZONA: GOBERNANZA, SEGURIDAD Y OPERACIONES -->
+        <mxCell id="sub_ops" value="Gobernanza, Monitoreo y Soporte Operativo" style="swimlane;whiteSpace=wrap;html=1;fillColor=#FAF5FF;strokeColor=#C084FC;fontStyle=1;fontSize=13;fontColor=#7E22CE;rounded=1;" vertex="1" parent="zone_aws">
+          <mxGeometry x="770" y="50" width="350" height="820" as="geometry" />
+        </mxCell>
+        <mxCell id="ecr" value="&lt;b&gt;Amazon ECR&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #581C87;&quot;&gt;spookython-simulador&lt;br&gt;Imágenes Linux amd64 inmutables&lt;br&gt;Digest sha256 validado&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#F3E8FF;strokeColor=#9333EA;fontSize=12;fontColor=#0F172A;" vertex="1" parent="sub_ops">
+          <mxGeometry x="25" y="45" width="300" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="cw" value="&lt;b&gt;Amazon CloudWatch&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #581C87;&quot;&gt;Log Group: /aws/ecs/default/spookython-web-14ac&lt;br&gt;&amp;bull; Logs stdout/stderr de FastAPI&lt;br&gt;&amp;bull; Trazas y métricas de AWS Lambda&lt;br&gt;&amp;bull; Auditoría con CloudTrail&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#9333EA;fontSize=12;fontColor=#0F172A;align=left;spacingLeft=10;" vertex="1" parent="sub_ops">
+          <mxGeometry x="25" y="160" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="iam" value="&lt;b&gt;AWS IAM (Mínimo Privilegio)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #581C87;&quot;&gt;&amp;bull; &lt;b&gt;ecsTaskExecutionRole:&lt;/b&gt; Pull ECR + Logs CW&lt;br&gt;&amp;bull; &lt;b&gt;ecsInfrastructureRole:&lt;/b&gt; ALB y VPC Discovery&lt;br&gt;&amp;bull; &lt;b&gt;ECS Task Policy:&lt;/b&gt; states:StartSyncExecution&lt;br&gt;&amp;bull; &lt;b&gt;Step Functions Policy:&lt;/b&gt; lambda:InvokeFunction&lt;br&gt;&amp;bull; Aislado sin credenciales humanas en código&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#9333EA;fontSize=11;fontColor=#0F172A;align=left;spacingLeft=10;" vertex="1" parent="sub_ops">
+          <mxGeometry x="25" y="290" width="300" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="budget" value="&lt;b&gt;AWS Budgets&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #92400E;&quot;&gt;&amp;bull; Límite de control: USD 5,00 / mes&lt;br&gt;&amp;bull; Alerta de correo electrónico configurada&lt;br&gt;&amp;bull; Estimación operativa: ~USD 1,20 / día&lt;br&gt;&amp;bull; Auditoría activa de costos&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=11;fontColor=#0F172A;align=left;spacingLeft=10;" vertex="1" parent="sub_ops">
+          <mxGeometry x="25" y="450" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="verification" value="&lt;b&gt;Verificación y Rendimiento (Benchmarking)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px; color: #334155;&quot;&gt;&amp;bull; 115 tests automatizados (pytest): 100% OK&lt;br&gt;&amp;bull; Simulación individual: p95 &amp;lt; 0.73 s&lt;br&gt;&amp;bull; Monte Carlo 30 réplicas (AWS): &amp;lt; 3.0 s&lt;br&gt;&amp;bull; Fallback local throttled: 37.9 s&lt;br&gt;&amp;bull; Evidencias en docs/*.json y dictamen-aws.md&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;fontSize=11;fontColor=#0F172A;align=left;spacingLeft=10;" vertex="1" parent="sub_ops">
+          <mxGeometry x="25" y="580" width="300" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="docs_ref" value="&lt;b&gt;Documentación Técnica&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px; color: #475569;&quot;&gt;docs/documentacion-tecnica-aws.md&lt;br&gt;docs/aws-deployment.md&lt;br&gt;infra/README.md&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#94A3B8;fontSize=11;fontColor=#334155;" vertex="1" parent="sub_ops">
+          <mxGeometry x="25" y="730" width="300" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- CONECTORES Y FLUJOS -->
+        <!-- Cliente a ALB -->
+        <mxCell id="edge_cli_alb" value="HTTPS :443" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0284C7;strokeWidth=2;fontSize=11;fontColor=#0369A1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="client_browser" target="alb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ALB a FastAPI -->
+        <mxCell id="edge_alb_fastapi" value="Proxy inverso :8000" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EA580C;strokeWidth=2;fontSize=11;fontColor=#C2410C;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="zone_aws" source="alb" target="fastapi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- FastAPI a Motor Local -->
+        <mxCell id="edge_fastapi_seir" value="POST /api/simulate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2563EB;strokeWidth=2;fontSize=11;fontColor=#1D4ED8;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="sub_ecs" source="fastapi" target="seir_engine">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- FastAPI a Step Functions (AWS Cloud) -->
+        <mxCell id="edge_fastapi_sfn" value="POST /api/batch (MONTECARLO_AWS=true)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;fontSize=11;fontColor=#0F766E;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="zone_aws" source="fastapi" target="sfn">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="530" />
+              <mxPoint x="180" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- FastAPI a Fallback Local -->
+        <mxCell id="edge_fastapi_pool" value="Fallback local si falla nube" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D97706;strokeWidth=2;strokeDasharray=4 4;fontSize=11;fontColor=#B45309;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0.8;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="sub_ecs" source="fastapi" target="process_pool">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_pool_seir" value="Ejecuta réplicas" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D97706;strokeWidth=2;fontSize=11;fontColor=#B45309;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="sub_ecs" source="process_pool" target="seir_engine">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- SFN a Inline Map -->
+        <mxCell id="edge_sfn_map" value="StartSyncExecution" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;fontSize=11;fontColor=#0F766E;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="sub_serverless" source="sfn" target="sfn_map">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Inline Map a Lambda Worker -->
+        <mxCell id="edge_map_lambda" value="Invocación concurrente réplicas" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;fontSize=11;fontColor=#0F766E;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0.8;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="sub_serverless" source="sfn_map" target="lambda_worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Inline Map a Reduce -->
+        <mxCell id="edge_map_reduce" value="Resultados réplicas" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;fontSize=11;fontColor=#0F766E;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="sub_serverless" source="sfn_map" target="sfn_reduce">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Reduce a Lambda Worker (Agregar) -->
+        <mxCell id="edge_reduce_lambda" value="Función Agregar" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;fontSize=11;fontColor=#0F766E;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="sub_serverless" source="sfn_reduce" target="lambda_worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Soporte y Despliegue -->
+        <mxCell id="edge_ecr_ecs" value="Despliegue imagen" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=1;strokeDasharray=4 4;fontSize=11;fontColor=#7E22CE;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="zone_aws" source="ecr" target="fastapi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_ecs_cw" value="Logs contenedor" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=1;strokeDasharray=4 4;fontSize=11;fontColor=#7E22CE;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="zone_aws" source="fastapi" target="cw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_lambda_cw" value="Trazas Lambda" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=1;strokeDasharray=4 4;fontSize=11;fontColor=#7E22CE;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.2;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="zone_aws" source="lambda_worker" target="cw">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="750" y="790" />
+              <mxPoint x="750" y="490" />
+              <mxPoint x="855" y="490" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
