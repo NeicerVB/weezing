@@ -46,7 +46,7 @@ python -m pip install -r requirements.txt
 python -m pip install -e ".[test]"
 
 # 3. Iniciar el servidor FastAPI con Uvicorn
-python -m uvicorn seir.app:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn seir.app:app --app-dir src --host 127.0.0.1 --port 8000 --reload
 ```
 
 ---
@@ -64,7 +64,7 @@ python -m pip install -r requirements.txt
 python -m pip install -e ".[test]"
 
 # 3. Iniciar el servidor FastAPI con Uvicorn
-python -m uvicorn seir.app:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn seir.app:app --app-dir src --host 127.0.0.1 --port 8000 --reload
 ```
 
 ---
@@ -82,7 +82,7 @@ python -m pip install -r requirements.txt
 python -m pip install -e ".[test]"
 
 # 3. Iniciar el servidor
-python -m uvicorn seir.app:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn seir.app:app --app-dir src --host 127.0.0.1 --port 8000 --reload
 ```
 
 > **Servicio activo:** Cuando la terminal indique `Uvicorn running on http://0.0.0.0:8000`, el servidor estará listo. Mantén esa terminal abierta y continúa con el paso 2.
