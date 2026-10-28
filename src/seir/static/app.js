@@ -31,9 +31,14 @@ function invalidateEditedScenario() {
 }
 
 const MAP_DEFAULT_VB = { x: 0, y: 15, w: 100, h: 70 };
+const TERRITORY_POLYGON = [[8,47],[18,37],[68,19],[91,35],[96,43],[94,51],[90,58],[82,65],[73,70],[53,74],[33,76],[23,70],[15,65],[10,56]];
+const SECTOR_CENTERS = {
+  tarqui:[78,54], eloy_alfaro:[53,63], los_esteros:[74,38], manta_centro:[55,43],
+  murcielago:[37,42], barbasquillo:[33,60], san_mateo:[18,51],
+};
 let mapVb = { ...MAP_DEFAULT_VB };
 const territoryShape = svgNode("path", { class: "territory-shape",
-  d: "M8 35 L18 30 L27 24 L38 27 L46 20 L55 26 L65 22 L73 29 L84 31 L91 39 L87 47 L91 55 L82 62 L74 69 L64 68 L55 76 L44 71 L34 75 L24 68 L14 64 L10 55 L15 47 Z" });
+  d: polygonPath(TERRITORY_POLYGON) });
 field("map").appendChild(territoryShape);
 let isPanning = false;
 let panStart = { x: 0, y: 0 };
@@ -193,6 +198,75 @@ function svgNode(tag, attrs = {}) {
   const element = document.createElementNS(SVG_NS, tag);
   for (const [key, item] of Object.entries(attrs)) element.setAttribute(key, item);
   return element;
+}
+
+function polygonPath(points) {
+  return `M${points.map(([x,y]) => `${x} ${y}`).join(" L")} Z`;
+}
+
+function containsPoint(polygon, x, y) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i], [xj, yj] = polygon[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function sectorPolygons() {
+  return Object.fromEntries(Object.entries(SECTOR_CENTERS).map(([sector, center]) => {
+    let cell = [...TERRITORY_POLYGON];
+    for (const other of Object.values(SECTOR_CENTERS)) {
+      if (other === center) continue;
+      const a = 2 * (other[0] - center[0]);
+      const b = 2 * (other[1] - center[1]);
+      const limit = other[0] ** 2 + other[1] ** 2 - center[0] ** 2 - center[1] ** 2;
+      const value = ([x,y]) => a * x + b * y - limit;
+      const clipped = [];
+      for (let i = 0; i < cell.length; i++) {
+        const current = cell[i], previous = cell[(i + cell.length - 1) % cell.length];
+        const currentValue = value(current), previousValue = value(previous);
+        const currentInside = currentValue <= 0, previousInside = previousValue <= 0;
+        if (currentInside !== previousInside) {
+          const ratio = previousValue / (previousValue - currentValue);
+          clipped.push([previous[0] + ratio * (current[0] - previous[0]), previous[1] + ratio * (current[1] - previous[1])]);
+        }
+        if (currentInside) clipped.push(current);
+      }
+      cell = clipped;
+    }
+    return [sector, cell];
+  }));
+}
+
+function boundaryDistance(polygon, x, y) {
+  return Math.min(...polygon.map(([x1,y1], index) => {
+    const [x2,y2] = polygon[(index + 1) % polygon.length];
+    const ratio = Math.max(0, Math.min(1, ((x-x1)*(x2-x1)+(y-y1)*(y2-y1))/((x2-x1)**2+(y2-y1)**2)));
+    return Math.hypot(x-(x1+ratio*(x2-x1)), y-(y1+ratio*(y2-y1)));
+  }));
+}
+
+function pointsInRegion(polygon, count, clearance) {
+  if (!count) return [];
+  const xs = polygon.map(([x]) => x), ys = polygon.map(([,y]) => y);
+  let area = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    const [x1,y1] = polygon[i], [x2,y2] = polygon[(i + 1) % polygon.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  let step = Math.min(1.1, Math.sqrt(Math.abs(area) / (2 * count)) * .62);
+  let candidates = [];
+  for (let attempt = 0; attempt < 6; attempt++, step *= .75) {
+    candidates = [];
+    for (let y = Math.min(...ys) + step / 2; y < Math.max(...ys); y += step) {
+      for (let x = Math.min(...xs) + step / 2; x < Math.max(...xs); x += step) {
+        if (containsPoint(polygon, x, y) && boundaryDistance(polygon, x, y) >= clearance) candidates.push({x,y});
+      }
+    }
+    if (candidates.length >= count) break;
+  }
+  return Array.from({length: count}, (_, index) => candidates[Math.floor((index + .5) * candidates.length / count)]);
 }
 
 function label(svg, text, x, y, anchor = "middle") {
@@ -395,35 +469,29 @@ function drawMap(data) {
     field("map-empty-title").textContent = data.meta?.animation_warning ? "Una red demasiado densa" : "Animación desactivada";
     field("map-empty-copy").textContent = data.meta?.animation_warning ? "Reduce la población o el grado medio para explorar la red." : "Activa «Animar la red» en la configuración para seguir el día a día.";
   } else {
-    const centers = {tarqui:[68,48],eloy_alfaro:[74,72],los_esteros:[82,32],manta_centro:[54,48],murcielago:[42,38],barbasquillo:[30,60],san_mateo:[15,75]};
+    const centers = SECTOR_CENTERS;
     const names = {tarqui:"Tarqui",eloy_alfaro:"Eloy Alfaro",los_esteros:"Los Esteros",manta_centro:"Manta Centro",murcielago:"Murciélago",barbasquillo:"Barbasquillo",san_mateo:"San Mateo"};
     const present = new Set(graph.nodes.map(node => node.sector));
+    const regions = sectorPolygons();
+    for (const sector of SECTORS) {
+      map.appendChild(svgNode("path", {d:polygonPath(regions[sector]), class:"sector-region", "data-sector":sector}));
+    }
     for (const sector of SECTORS) if (present.has(sector)) {
       const [x,y] = centers[sector];
-      map.appendChild(svgNode("circle", {cx:x,cy:y,r:9,class:"sector-halo"}));
+      map.appendChild(svgNode("circle", {cx:x,cy:y,r:1.4,class:"sector-halo"}));
     }
     const layoutNodes = graph.nodes.map(point => ({ ...point }));
     for (const sector of SECTORS) {
       const members = layoutNodes.filter(point => point.sector === sector);
-      const [cx, cy] = centers[sector];
-      const radius = 8.2;
-      const spacing = Math.min(1.7, radius * Math.sqrt(3.2 / members.length));
-      const rowHeight = spacing * Math.sqrt(3) / 2;
-      const rows = Math.ceil(radius / rowHeight);
-      const positions = [];
-      for (let row = -rows; row <= rows; row++) {
-        const y = row * rowHeight;
-        const offset = Math.abs(row) % 2 ? spacing / 2 : 0;
-        for (let column = -rows; column <= rows; column++) {
-          const x = column * spacing + offset;
-          if (x * x + y * y <= radius * radius) positions.push({ x, y });
-        }
-      }
-      positions.sort((a, b) => a.x * a.x + a.y * a.y - b.x * b.x - b.y * b.y || a.y - b.y || a.x - b.x);
-      const scale = Math.min(1, spacing / 1.75);
+      const region = regions[sector];
+      const area = Math.abs(region.reduce((sum, [x,y], index) => {
+        const [nx,ny] = region[(index + 1) % region.length]; return sum + x * ny - nx * y;
+      }, 0)) / 2;
+      const scale = Math.max(.28, Math.min(.8, Math.sqrt(area / Math.max(1, members.length)) * .36));
+      const positions = pointsInRegion(region, members.length, scale * .85 + .15);
       members.forEach((point, index) => {
-        point.displayX = cx + positions[index].x;
-        point.displayY = cy + positions[index].y;
+        point.displayX = positions[index].x;
+        point.displayY = positions[index].y;
         point.displayScale = scale;
       });
     }
@@ -443,7 +511,7 @@ function drawMap(data) {
       }
     }
     for (const { id, x, y, displayX, displayY, displayScale, state, sector, label: nodeLabel } of layoutNodes) {
-      const group = svgNode("g");
+      const group = svgNode("g", {"data-sector":sector, "data-x":displayX ?? x, "data-y":displayY ?? y, "data-scale":displayScale ?? 1});
       const point = { id, x: displayX ?? x, y: displayY ?? y, scale: displayScale ?? 1, state, sector, group, label: nodeLabel };
       points.set(id, point);
       paintPoint(point, state);
@@ -625,12 +693,19 @@ field("sidebar-toggle").addEventListener("click", () => {
   layout.setAttribute("data-controls-open", String(!open));
   field("sidebar-toggle").setAttribute("aria-expanded", String(!open));
   field("sidebar-toggle").setAttribute("aria-label", open ? "Mostrar parámetros" : "Ocultar parámetros");
+  if (!open) {
+    field("parameter-fields").setAttribute("data-open", "true");
+    field("toggle-parameters").setAttribute("aria-expanded", "true");
+    field("toggle-parameters").textContent = "Ocultar parámetros";
+    document.querySelectorAll(".control-details").forEach(details => details.setAttribute("open", ""));
+  }
 });
 field("toggle-parameters").addEventListener("click", () => {
   const open = field("parameter-fields").getAttribute("data-open") !== "true";
   field("parameter-fields").setAttribute("data-open", String(open));
   field("toggle-parameters").setAttribute("aria-expanded", String(open));
   field("toggle-parameters").textContent = open ? "Ocultar parámetros" : "Ver parámetros";
+  if (open) document.querySelectorAll(".control-details").forEach(details => details.setAttribute("open", ""));
 });
 
 const btnZoomIn = field("zoom-in");

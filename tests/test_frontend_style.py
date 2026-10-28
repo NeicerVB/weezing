@@ -48,6 +48,10 @@ class FrontendStyleTests(unittest.TestCase):
         self.assertRegex(self.css, r"\.field-help:focus-visible::after")
         self.assertRegex(self.css, r"\.day-balance[^}]*min-height")
 
+    def test_map_cards_share_state_colors_and_stack_before_toolbar_collision(self):
+        self.assertRegex(self.css, r"\.map-surface\s+\.day-balance\s+\.node-i\s*\{[^}]*background:\s*var\(--color-i\)")
+        self.assertRegex(self.css, r"@media\s*\(max-width:\s*1000px\)[^{]*\{[\s\S]*?\.map-surface\s+\.day-balance\s*\{[^}]*top:\s*56px")
+
 
 if __name__ == "__main__":
     unittest.main()

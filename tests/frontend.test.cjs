@@ -31,6 +31,7 @@ function setup(fetchImpl = async () => response(fixture())) {
   assert.ok(fs.existsSync(path.join(root, 'app.js')), 'Falta el controlador territorial');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const elements = {};
+  const details = [];
   for (const match of html.matchAll(/<([a-z][\w-]*)\b([^>]*\bid="([^"]+)"[^>]*)>/g)) {
     const attrs = Object.fromEntries([...match[2].matchAll(/([\w-]+)="([^"]*)"/g)].map((item) => [item[1], item[2]]));
     elements[match[3]] = new Element(match[1], attrs);
@@ -39,12 +40,17 @@ function setup(fetchImpl = async () => response(fixture())) {
       elements[match[3]].value = firstOption?.[1] ?? '';
     }
   }
+  for (const match of html.matchAll(/<details\b([^>]*)>/g)) {
+    const attrs = Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map((item) => [item[1], item[2]]));
+    details.push(new Element('details', attrs));
+  }
   const document = {
     listeners: {},
     addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); },
     fire(name) { for (const fn of this.listeners[name] ?? []) fn(); },
     getElementById: (id) => elements[id],
     querySelector: (selector) => selector === ".layout" ? elements.layout : null,
+    querySelectorAll: (selector) => selector === ".control-details" ? details : [],
     createElementNS: (_, tag) => new Element(tag),
     createElement: (tag) => new Element(tag),
   };
@@ -60,7 +66,7 @@ function setup(fetchImpl = async () => response(fixture())) {
   vm.runInNewContext(fs.readFileSync(path.join(root, 'app.js'), 'utf8'), {
     document, fetch: fetchImpl, setTimeout, clearTimeout, console,
   }, { filename: 'app.js' });
-  return { elements, tick, document };
+  return { elements, tick, document, details };
 }
 
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
@@ -234,6 +240,69 @@ test('ajusta stock y grado válidos cuando cambia la población del Brote Sorpre
   assert.equal(el.degree.getAttribute('max'), '6');
   assert.equal(Number(el['initial-tarqui'].value), 1);
   assert.equal(Number(el['initial-los_esteros'].value), 1);
+});
+
+test('particiona el territorio sin solapes y mantiene centros y símbolos dentro a N=1000 y N=2000', async () => {
+  const sectors = ['tarqui', 'eloy_alfaro', 'los_esteros', 'manta_centro', 'murcielago', 'barbasquillo', 'san_mateo'];
+  const parsePath = path => [...path.matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)].map(match => [Number(match[1]), Number(match[2])]);
+  const inside = (polygon, x, y) => polygon.reduce((value, [xi,yi], index) => {
+    const [xj,yj] = polygon[(index + polygon.length - 1) % polygon.length];
+    return ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ? !value : value;
+  }, false);
+  const edgeDistance = (polygon, x, y) => Math.min(...polygon.map(([x1,y1], index) => {
+    const [x2,y2] = polygon[(index + 1) % polygon.length];
+    const ratio = Math.max(0, Math.min(1, ((x-x1)*(x2-x1)+(y-y1)*(y2-y1))/((x2-x1)**2+(y2-y1)**2)));
+    return Math.hypot(x-(x1+ratio*(x2-x1)),y-(y1+ratio*(y2-y1)));
+  }));
+  for (const total of [7, 1000, 2000]) {
+    const data = fixture();
+    data.graph = { nodes: Array.from({ length: total }, (_, id) => ({ id, sector: sectors[id % 7], x: 0, y: 0, state: 'V' })), edges: [] };
+    const { elements: el } = setup(async () => response(data));
+    el.controls.fire('submit'); await flush();
+    const svg = descendants(el.map);
+    const outline = parsePath(svg.find(item => item.attrs.class === 'territory-shape').attrs.d);
+    const regions = Object.fromEntries(svg.filter(item => item.attrs.class === 'sector-region')
+      .map(item => [item.attrs['data-sector'], parsePath(item.attrs.d)]));
+    assert.equal(Object.keys(regions).length, 7);
+    for (let y = 23.37; y < 76; y += 1.13) for (let x = 9.31; x < 95; x += 1.17) {
+      if (inside(outline, x, y)) assert.equal(Object.values(regions).filter(polygon => inside(polygon, x, y)).length, 1,
+        `Territorio (${x}, ${y}) debe tener exactamente un sector`);
+    }
+    const nodes = svg.filter(item => item.tagName === 'g');
+    assert.equal(nodes.length, total);
+    const first = nodes.map(node => [Number(node.attrs['data-x']), Number(node.attrs['data-y']), node.attrs['data-sector'], Number(node.attrs['data-scale'])]);
+    assert.equal(new Set(first.map(([x,y]) => `${x},${y}`)).size, total, 'No empty or duplicated node positions');
+    for (const [x,y,sector,scale] of first) {
+      const region = regions[sector];
+      assert.ok(inside(outline, x, y) && inside(region, x, y), `${sector} center must belong to its cell and outline`);
+      assert.equal(Object.values(regions).filter(polygon => inside(polygon, x, y)).length, 1, 'Displayed centers have unique ownership');
+      assert.ok(edgeDistance(region, x, y) >= .85 * scale + .14, 'Every symbol stroke must clear its cell and outline boundaries');
+      const node = nodes.find(item => Number(item.attrs['data-x']) === x && Number(item.attrs['data-y']) === y);
+      const vertices = node.children[0].attrs.points.split(/\s+/).map(pair => pair.split(',').map(Number));
+      assert.ok(vertices.every(([vx,vy]) => edgeDistance(region, vx, vy) >= .14), 'Every star vertex keeps half-stroke clearance');
+    }
+    if (total === 1000) {
+      const { elements: again } = setup(async () => response(data));
+      again.controls.fire('submit'); await flush();
+      assert.deepEqual(descendants(again.map).filter(item => item.tagName === 'g').map(node => [Number(node.attrs['data-x']), Number(node.attrs['data-y'])]), first.map(([x,y]) => [x,y]));
+    }
+  }
+});
+
+test('abre todos los controles y sitúa el balance diario dentro del mapa', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(html, /id="parameter-fields" class="parameter-fields" data-open="true"/);
+  assert.match(html, /<details class="control-details" open>/g);
+  assert.ok(html.indexOf('class="day-balance"') > html.indexOf('id="map"') &&
+    html.indexOf('class="day-balance"') < html.indexOf('class="playback"'));
+  assert.match(html, /Los indicadores resumen toda la corrida[\s\S]*el mapa comienza en el día 0/i);
+  const { elements: el, details } = setup();
+  delete details[0].attrs.open;
+  delete details[1].attrs.open;
+  el['sidebar-toggle'].fire('click');
+  el['sidebar-toggle'].fire('click');
+  assert.equal(el['sidebar-toggle'].getAttribute('aria-expanded'), 'true');
+  assert.ok(details.every(group => group.getAttribute('open') !== null));
 });
 
 function fixture() {
