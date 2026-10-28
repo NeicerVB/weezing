@@ -77,6 +77,26 @@ class FrontendLayoutTests(unittest.TestCase):
         for symbol in ("Círculo", "Cuadrado", "Triángulo", "Cruz", "Estrella"):
             self.assertIn(symbol, content)
 
+    def test_map_precedes_metrics_and_controls_can_be_collapsed(self):
+        content = PAGE.read_text(encoding="utf-8")
+        self.assertLess(content.index('id="map-panel"'), content.index('id="overview"'))
+        self.assertIn('id="sidebar-toggle"', content)
+        self.assertIn('aria-controls="controls-panel"', content)
+        for strategy in ("proposed", "random", "none"):
+            self.assertIn(f'id="strategy-{strategy}"', content)
+        chart = content[content.index('class="panel chart-panel"'):content.index('class="panel comparison-panel"')]
+        self.assertEqual(content.count('class="strategy-picker"'), 1)
+        self.assertIn('class="strategy-picker"', chart)
+        self.assertIn("parámetros compartidos", chart)
+        self.assertIn("corrida aleatoria aislada", chart)
+
+    def test_each_parameter_exposes_a_keyboard_accessible_explanation(self):
+        content = PAGE.read_text(encoding="utf-8")
+        for parameter in ("n", "days", "beta", "mode", "k_max", "efficacy", "include_frames",
+                          "sigma", "gamma", "degree", "quota", "seed", *(f"initial-{sector}" for sector in SECTORS)):
+            with self.subTest(parameter=parameter):
+                self.assertRegex(content, rf'for="{parameter}"[^\n]*class="field-help"[^>]*tabindex="0"')
+
 
 if __name__ == "__main__":
     unittest.main()

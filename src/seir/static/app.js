@@ -23,8 +23,18 @@ let queuedSimulation = null;
 let chartCursor = null;
 const modifiedPoints = new Set();
 
+function invalidateEditedScenario() {
+  clearTimeout(debounce);
+  requestId += 1;
+  field("run-batch").disabled = true;
+  appStatus(lastSimulation ? "Parámetros modificados · genera para actualizar" : "Configura el escenario y genera la simulación");
+}
+
 const MAP_DEFAULT_VB = { x: 0, y: 15, w: 100, h: 70 };
 let mapVb = { ...MAP_DEFAULT_VB };
+const territoryShape = svgNode("path", { class: "territory-shape",
+  d: "M8 35 L18 30 L27 24 L38 27 L46 20 L55 26 L65 22 L73 29 L84 31 L91 39 L87 47 L91 55 L82 62 L74 69 L64 68 L55 76 L44 71 L34 75 L24 68 L14 64 L10 55 L15 47 Z" });
+field("map").appendChild(territoryShape);
 let isPanning = false;
 let panStart = { x: 0, y: 0 };
 let startVb = { ...mapVb };
@@ -159,26 +169,18 @@ async function fetchSimulation(id) {
     if (queuedSimulation !== null) {
       queuedSimulation = null;
       fetchSimulation(requestId);
-    } else if (id === requestId) setBusy(false);
+    } else setBusy(false);
   }
 }
 
 form.addEventListener("input", () => {
   syncPopulationLimits();
-  field("run-batch").disabled = true;
   for (const id of ["beta", "efficacy"]) field(`${id}-value`).textContent = field(id).value;
-  clearTimeout(debounce);
-  const id = ++requestId;
-  setBusy(true);
-  debounce = setTimeout(() => fetchSimulation(id), 150);
+  invalidateEditedScenario();
 });
 form.addEventListener("change", () => {
   syncPopulationLimits();
-  field("run-batch").disabled = true;
-  clearTimeout(debounce);
-  const id = ++requestId;
-  setBusy(true);
-  debounce = setTimeout(() => fetchSimulation(id), 150);
+  invalidateEditedScenario();
 });
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -241,23 +243,23 @@ function drawCurves(data) {
   updateDay();
 }
 
-function symbol(id, x, y, state) {
+function symbol(id, x, y, state, scale = 1) {
   const stateClass = { S: "s", E: "e", I: "i", R: "r", V: "vol" };
   const common = { class: `node-${stateClass[state] || "s"}`,
     "data-node-id": id,
     role: "img" };
   let node;
-  if (state === "E") node = svgNode("rect", { ...common, x: x - .5, y: y - .5, width: 1, height: 1 });
+  if (state === "E") node = svgNode("rect", { ...common, x: x - .5 * scale, y: y - .5 * scale, width: scale, height: scale });
   else if (state === "I") node = svgNode("polygon", { ...common,
-    points: `${x},${y - .8} ${x - .7},${y + .6} ${x + .7},${y + .6}` });
+    points: `${x},${y - .8 * scale} ${x - .7 * scale},${y + .6 * scale} ${x + .7 * scale},${y + .6 * scale}` });
   else if (state === "V") {
     const vertices = Array.from({ length: 10 }, (_, i) => {
       const angle = -Math.PI / 2 + i * Math.PI / 5;
-      const radius = i % 2 ? .36 : .85;
+      const radius = (i % 2 ? .36 : .85) * scale;
       return `${x + radius * Math.cos(angle)},${y + radius * Math.sin(angle)}`;
     });
     node = svgNode("polygon", { ...common, points: vertices.join(" ") });
-  } else node = svgNode("circle", { ...common, cx: x, cy: y, r: .48 });
+  } else node = svgNode("circle", { ...common, cx: x, cy: y, r: .48 * scale });
   const names = { S: "susceptible", E: "expuesto", I: "infeccioso", R: "recuperado", V: "brigadista" };
   node.setAttribute("aria-label", `Nodo ${id}: ${names[state] || names.S}`);
   return node;
@@ -266,12 +268,12 @@ function symbol(id, x, y, state) {
 function paintPoint(point, state) {
   if (point.visualState === state && (point.group.children?.length || point.group.childNodes?.length)) return;
   point.visualState = state;
-  point.group.replaceChildren(symbol(point.id, point.x, point.y, state));
+  point.group.replaceChildren(symbol(point.id, point.x, point.y, state, point.scale));
   if (state === "R") {
-    point.group.appendChild(svgNode("line", { x1: point.x - .3, y1: point.y - .3,
-      x2: point.x + .3, y2: point.y + .3, class: "mark" }));
-    point.group.appendChild(svgNode("line", { x1: point.x + .3, y1: point.y - .3,
-      x2: point.x - .3, y2: point.y + .3, class: "mark" }));
+    point.group.appendChild(svgNode("line", { x1: point.x - .3 * point.scale, y1: point.y - .3 * point.scale,
+      x2: point.x + .3 * point.scale, y2: point.y + .3 * point.scale, class: "mark" }));
+    point.group.appendChild(svgNode("line", { x1: point.x + .3 * point.scale, y1: point.y - .3 * point.scale,
+      x2: point.x - .3 * point.scale, y2: point.y + .3 * point.scale, class: "mark" }));
   }
   const title = svgNode("title");
   title.textContent = `${point.label || `Nodo ${point.id}`} · ${state === "V" ? "Brigadista" : state}`;
@@ -286,7 +288,9 @@ function stop() {
   field("pause").disabled = true;
   field("restart").disabled = !available;
   const ended = available && currentDay >= frames[frames.length - 1].day;
-  field("play").textContent = ended ? "Repetir" : "Reproducir";
+  field("play").textContent = "▶";
+  field("play").setAttribute("aria-label", ended ? "Repetir animación" : "Reproducir animación");
+  field("play").setAttribute("title", ended ? "Repetir desde el día cero" : "Reproducir animación");
   field("playback-status").textContent = !available ? "Sin animación" : ended ? "Finalizado" : "En pausa";
   field("playback-status").setAttribute("data-playing", "false");
 }
@@ -383,7 +387,7 @@ function drawMap(data) {
   modifiedPoints.clear();
   resetMapView();
   const map = field("map");
-  map.replaceChildren();
+  map.replaceChildren(territoryShape);
   const graph = data.graph;
   field("map-empty").hidden = Boolean(graph?.nodes?.length);
   if (!graph || !Array.isArray(graph.nodes) || !graph.nodes.length) {
@@ -398,7 +402,32 @@ function drawMap(data) {
       const [x,y] = centers[sector];
       map.appendChild(svgNode("circle", {cx:x,cy:y,r:9,class:"sector-halo"}));
     }
-    const byId = new Map(graph.nodes.map(point => [point.id, point]));
+    const layoutNodes = graph.nodes.map(point => ({ ...point }));
+    for (const sector of SECTORS) {
+      const members = layoutNodes.filter(point => point.sector === sector);
+      const [cx, cy] = centers[sector];
+      const radius = 8.2;
+      const spacing = Math.min(1.7, radius * Math.sqrt(3.2 / members.length));
+      const rowHeight = spacing * Math.sqrt(3) / 2;
+      const rows = Math.ceil(radius / rowHeight);
+      const positions = [];
+      for (let row = -rows; row <= rows; row++) {
+        const y = row * rowHeight;
+        const offset = Math.abs(row) % 2 ? spacing / 2 : 0;
+        for (let column = -rows; column <= rows; column++) {
+          const x = column * spacing + offset;
+          if (x * x + y * y <= radius * radius) positions.push({ x, y });
+        }
+      }
+      positions.sort((a, b) => a.x * a.x + a.y * a.y - b.x * b.x - b.y * b.y || a.y - b.y || a.x - b.x);
+      const scale = Math.min(1, spacing / 1.75);
+      members.forEach((point, index) => {
+        point.displayX = cx + positions[index].x;
+        point.displayY = cy + positions[index].y;
+        point.displayScale = scale;
+      });
+    }
+    const byId = new Map(layoutNodes.map(point => [point.id, point]));
     for (const edge of graph.edges || []) {
       const [source, target] = edge;
       const from = byId.get(source);
@@ -406,15 +435,16 @@ function drawMap(data) {
       if (from && to) {
         const isBridge = from.sector && to.sector && from.sector !== to.sector;
         map.appendChild(svgNode("line", {
-          x1: from.x, y1: from.y, x2: to.x, y2: to.y,
+          x1: from.displayX ?? from.x, y1: from.displayY ?? from.y,
+          x2: to.displayX ?? to.x, y2: to.displayY ?? to.y,
           class: isBridge ? "edge edge-bridge" : "edge edge-internal",
           "data-bridge": isBridge ? "true" : "false",
         }));
       }
     }
-    for (const { id, x, y, state, sector, label: nodeLabel } of graph.nodes) {
+    for (const { id, x, y, displayX, displayY, displayScale, state, sector, label: nodeLabel } of layoutNodes) {
       const group = svgNode("g");
-      const point = { id, x, y, state, sector, group, label: nodeLabel };
+      const point = { id, x: displayX ?? x, y: displayY ?? y, scale: displayScale ?? 1, state, sector, group, label: nodeLabel };
       points.set(id, point);
       paintPoint(point, state);
       map.appendChild(group);
@@ -430,7 +460,6 @@ function drawMap(data) {
   field("play").disabled = field("pause").disabled = field("timeline").disabled = !points.size || !frames.length;
   field("timeline").max = String(frames.length ? frames[frames.length - 1].day : 0);
   seek(0);
-  if (frames.length && points.size && (typeof matchMedia !== "function" || !matchMedia("(prefers-reduced-motion: reduce)").matches)) startPlayback();
 }
 
 function metrics(data) {
@@ -476,6 +505,7 @@ function show(data, body) {
   field("results-context").textContent = `Balance final · ${data.meta.days} días · semilla ${body?.seed ?? data.meta.seed ?? "—"}`;
   appStatus("Escenario actualizado");
   field("run-batch").disabled = batchBusy;
+  for (const strategy of ["proposed", "random", "none"]) field(`strategy-${strategy}`).disabled = false;
   field("monte-carlo-status").textContent = "Curvas, tarjetas e informe: simulación individual con la semilla elegida.";
 }
 
@@ -538,13 +568,64 @@ field("randomize").addEventListener("click", () => {
   const active = sectors.slice(0,integer(1,3));
   for (const sector of SECTORS) field(`initial-${sector}`).value = active.includes(sector) ? String(integer(2,12)) : "0";
   for (const id of ["beta","efficacy"]) field(`${id}-value`).textContent = field(id).value;
-  field("scenario-note").textContent = `Escenario al azar · semilla ${seed} · ${n} personas · ${active.length} ${active.length===1?"foco":"focos"}.`;
+  field("scenario-note").textContent = `Parámetros al azar listos · semilla ${seed} · ${n} personas · ${active.length} ${active.length===1?"foco":"focos"}. Selecciona Generar simulación para ejecutarlos.`;
   clearTimeout(debounce);
+  requestId += 1;
   field("run-batch").disabled = true;
-  fetchSimulation(++requestId);
+  appStatus("Parámetros al azar listos · falta generar la simulación");
 });
 
-document.addEventListener("DOMContentLoaded", () => fetchSimulation(++requestId), {once:true});
+for (const strategy of ["proposed", "random", "none"]) field(`strategy-${strategy}`).disabled = true;
+for (const strategy of ["proposed", "random", "none"]) {
+  field(`strategy-${strategy}`).addEventListener("click", () => {
+    if (!lastPayload) return;
+    const base = lastPayload;
+    const selected = JSON.parse(JSON.stringify(base));
+    if (strategy === "none") {
+      selected.intervention.k_max = 0;
+      selected.intervention.quota = 0;
+    }
+    field("n").value = String(selected.n);
+    field("days").value = String(selected.days);
+    field("seed").value = String(selected.seed);
+    field("beta").value = String(selected.beta);
+    field("sigma").value = String(selected.sigma);
+    field("gamma").value = String(selected.gamma);
+    field("degree").value = String(selected.degree);
+    field("mode").value = selected.intervention.mode;
+    field("efficacy").value = String(selected.intervention.efficacy);
+    field("quota").value = String(selected.intervention.quota);
+    field("k_max").value = String(selected.intervention.k_max);
+    field("include_frames").checked = selected.include_frames;
+    for (const sector of SECTORS) field(`initial-${sector}`).value = String(selected.initial[sector] || 0);
+    syncPopulationLimits();
+    field("beta-value").textContent = field("beta").value;
+    field("efficacy-value").textContent = field("efficacy").value;
+    requestId += 1;
+    field("run-batch").disabled = true;
+    field("scenario-note").textContent = strategy === "random"
+      ? "Asignación al azar cambia cómo se reparten las dosis; no es un escenario aleatorio. Se cargaron las condiciones de la última simulación."
+      : strategy === "none"
+        ? "Se cargaron las mismas condiciones de la última simulación, sin dosis. Genera la simulación para actualizar el resultado."
+        : "Se cargaron las condiciones de la propuesta en la última simulación. Genera de nuevo para actualizar el resultado.";
+    const layout = document.querySelector(".layout");
+    layout.setAttribute("data-controls-open", "true");
+    field("sidebar-toggle").setAttribute("aria-expanded", "true");
+    field("sidebar-toggle").setAttribute("aria-label", "Ocultar parámetros");
+    field("parameter-fields").setAttribute("data-open", "true");
+    field("toggle-parameters").setAttribute("aria-expanded", "true");
+    field("toggle-parameters").textContent = "Ocultar parámetros";
+    appStatus("Parámetros cargados · genera para actualizar");
+  });
+}
+
+field("sidebar-toggle").addEventListener("click", () => {
+  const layout = document.querySelector(".layout");
+  const open = layout.getAttribute("data-controls-open") !== "false";
+  layout.setAttribute("data-controls-open", String(!open));
+  field("sidebar-toggle").setAttribute("aria-expanded", String(!open));
+  field("sidebar-toggle").setAttribute("aria-label", open ? "Mostrar parámetros" : "Ocultar parámetros");
+});
 field("toggle-parameters").addEventListener("click", () => {
   const open = field("parameter-fields").getAttribute("data-open") !== "true";
   field("parameter-fields").setAttribute("data-open", String(open));

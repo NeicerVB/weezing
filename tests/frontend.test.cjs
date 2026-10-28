@@ -44,6 +44,7 @@ function setup(fetchImpl = async () => response(fixture())) {
     addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); },
     fire(name) { for (const fn of this.listeners[name] ?? []) fn(); },
     getElementById: (id) => elements[id],
+    querySelector: (selector) => selector === ".layout" ? elements.layout : null,
     createElementNS: (_, tag) => new Element(tag),
     createElement: (tag) => new Element(tag),
   };
@@ -64,16 +65,20 @@ function setup(fetchImpl = async () => response(fixture())) {
 
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 
-test('genera la primera vista y muestra carga hasta que llega la respuesta', async () => {
+test('no inicia una simulación al cargar y espera una acción explícita', async () => {
   let release;
-  let sent;
+  let sent = 0;
   const { elements: el, document } = setup((url, options) => {
-    sent = JSON.parse(options.body);
+    sent += 1;
     return new Promise(resolve => { release = resolve; });
   });
   document.fire('DOMContentLoaded');
-  assert.ok(sent, 'Debe generar un escenario al abrir la página');
-  assert.equal(sent.include_frames, true);
+  await flush();
+  assert.equal(sent, 0);
+  assert.equal(el['map-empty'].hidden, false);
+  el.controls.fire('submit');
+  await flush();
+  assert.equal(sent, 1);
   assert.equal(el.simulate.disabled, true);
   assert.match(el.simulate.textContent, /generando/i);
   assert.equal(el['map-loading'].hidden, false);
@@ -82,6 +87,19 @@ test('genera la primera vista y muestra carga hasta que llega la respuesta', asy
   await flush();
   assert.equal(el['map-loading'].hidden, true);
   assert.equal(el.simulate.disabled, false);
+  assert.equal(el.workspace.getAttribute('aria-busy'), 'false');
+});
+
+test('los cambios durante una petición obsoleta no dejan la pantalla bloqueada', async () => {
+  const pending = [];
+  const { elements: el } = setup(() => new Promise(resolve => pending.push(resolve)));
+  el.controls.fire('submit'); await flush();
+  el.beta.value = '0.2';
+  el.controls.fire('input');
+  pending[0](response(fixture()));
+  await flush();
+  assert.equal(el.simulate.disabled, false);
+  assert.equal(el['map-loading'].hidden, true);
   assert.equal(el.workspace.getAttribute('aria-busy'), 'false');
 });
 
@@ -100,7 +118,7 @@ test('un error retira la carga, conserva resultados previos y permite reintentar
   assert.match(el.error.textContent, /ocupado/);
 });
 
-test('el dado cambia escenarios, respeta restricciones y solicita datos reales', async () => {
+test('el dado cambia parámetros sin ejecutar una simulación automáticamente', async () => {
   const sent=[];
   const { elements: el } = setup(async (url,options) => { sent.push(JSON.parse(options.body)); return response(fixture()); });
   let previousSeed=Number(el.seed.value);
@@ -108,32 +126,46 @@ test('el dado cambia escenarios, respeta restricciones y solicita datos reales',
   for(let roll=0; roll<20; roll++) {
     el.randomize.fire('click');
     await flush();
-    const body=sent.at(-1);
-    assert.ok(body);
-    assert.notEqual(body.seed,previousSeed);
-    previousSeed=body.seed;
-    assert.ok(body.n>=7 && body.n<=2000);
-    assert.ok(body.days>=1 && body.days<=90);
-    assert.ok(body.beta>0 && body.beta<=1);
-    assert.ok(body.intervention.k_max<=Math.floor(.4*body.n));
-    assert.ok(Object.values(body.initial).reduce((a,b)=>a+b,0)>0);
-    for(const [sector,count] of Object.entries(body.initial)) {
+    assert.equal(sent.length, 0);
+    const seed=Number(el.seed.value);
+    assert.notEqual(seed,previousSeed);
+    previousSeed=seed;
+    const n=Number(el.n.value);
+    assert.ok(n>=7 && n<=2000);
+    assert.ok(Number(el.days.value)>=1 && Number(el.days.value)<=90);
+    assert.ok(Number(el.beta.value)>0 && Number(el.beta.value)<=1);
+    assert.ok(Number(el.k_max.value)<=Math.floor(.4*n));
+    const initial=Object.fromEntries(['tarqui','eloy_alfaro','los_esteros','manta_centro','murcielago','barbasquillo','san_mateo'].map(sector => [sector,Number(el[`initial-${sector}`].value)]));
+    assert.ok(Object.values(initial).reduce((a,b)=>a+b,0)>0);
+    for(const [sector,count] of Object.entries(initial)) {
       const index=['tarqui','eloy_alfaro','los_esteros','manta_centro','murcielago','barbasquillo','san_mateo'].indexOf(sector);
-      assert.ok(count<=Math.floor(body.n/7)+(index<body.n%7?1:0));
+      assert.ok(count<=Math.floor(n/7)+(index<n%7?1:0));
     }
   }
   assert.match(el['scenario-note'].textContent,/semilla/i);
 });
 
-test('la red avanza sola y sincroniza día y balance; pausa y reinicio funcionan', async () => {
+test('la red espera inicio explícito y sincroniza día y balance; pausa y reinicio funcionan', async () => {
   const data=fixture();
   data.graph={nodes:[{id:0,x:10,y:20,state:'S'},{id:1,x:30,y:40,state:'I'}],edges:[[0,1]]};
   data.frames=[{day:1,changed:[{id:0,state:'E'}]}];
   data.strategies.proposed.days=[{day:0,s:1,e:0,i:1,r:0},{day:1,s:0,e:1,i:1,r:0}];
   const {elements:el,tick}=setup(async()=>response(data));
+  assert.equal(descendants(el.map).filter(child => child.attrs.class === 'territory-shape').length, 1);
   el.controls.fire('submit'); await flush();
   tick(250);
+  assert.equal(el.day.textContent,'Día 0');
+  assert.equal(descendants(el.map).filter(child => child.attrs.class === 'territory-shape').length, 1,
+    'La silueta ilustrativa permanece al renderizar la red.');
+  assert.equal(el.play.textContent, '▶');
+  assert.equal(el.play.getAttribute('aria-label'), 'Reproducir animación');
+  assert.equal(el.play.getAttribute('title'), 'Reproducir animación');
+  el.play.fire('click');
+  tick(250);
   assert.equal(el.day.textContent,'Día 1');
+  assert.equal(el.play.textContent, '▶');
+  assert.equal(el.play.getAttribute('aria-label'), 'Repetir animación');
+  assert.equal(el.play.getAttribute('title'), 'Repetir desde el día cero');
   assert.equal(el['map-count-e'].textContent,'1');
   el.restart.fire('click');
   assert.equal(el.day.textContent,'Día 0');
@@ -182,6 +214,7 @@ test('mantiene Monte Carlo ocupado hasta que termine el lote anterior al cambiar
   el.seed.value = '43';
   el.controls.fire('input');
   tick(150);
+  el.controls.fire('submit');
   releaseNew(response(fixture()));
   await flush();
   assert.equal(el['run-batch'].disabled, true);
@@ -244,7 +277,10 @@ test('serializa los parámetros y agrupa los cambios rápidos en una única peti
   el.controls.fire('input');
   tick(149);
   assert.equal(requests.length, 0);
-  tick(1);
+  tick(500);
+  await flush();
+  assert.equal(requests.length, 0, 'Editar parámetros no debe ejecutar el escenario');
+  el.controls.fire('submit');
   await flush();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, '/api/simulate');
@@ -309,7 +345,7 @@ test('una respuesta anterior no sobrescribe los resultados más recientes', asyn
   await flush();
   el.beta.value = '0.2';
   el.controls.fire('input');
-  tick(150);
+  el.controls.fire('submit');
   await flush();
   assert.equal(pending.length, 1, 'Agrupa cambios mientras hay una simulación en curso');
   const old = fixture();
@@ -323,13 +359,16 @@ test('una respuesta anterior no sobrescribe los resultados más recientes', asyn
   assert.equal(el.r0.textContent, '2.40');
 });
 
-test('un cambio ya iniciado no se vuelve a solicitar al vencer su debounce', async () => {
+test('un cambio editado no reemplaza la corrida hasta que se solicita explícitamente', async () => {
   const pending=[];
   const {elements:el,tick}=setup(()=>new Promise(resolve=>pending.push(resolve)));
   el.controls.fire('submit');
   el.beta.value='0.04'; el.controls.fire('input'); tick(150);
-  el.beta.value='0.05'; el.controls.fire('input');
+  assert.equal(pending.length,1);
   pending[0](response(fixture())); await flush();
+  assert.equal(pending.length,1);
+  assert.notEqual(el.r0.textContent,'2.40');
+  el.controls.fire('submit'); await flush();
   assert.equal(pending.length,2);
   pending[1](response(fixture())); await flush();
   tick(150); await flush();
@@ -344,7 +383,7 @@ test('dibuja la topología opcional y aplica diffs sin perder el estado inicial 
   el.include_frames.checked = true;
   el.controls.fire('submit');
   await flush();
-  assert.equal(el.play.disabled, true, 'Reproduce automáticamente al llegar la red');
+  assert.equal(el.play.disabled, false, 'La reproducción queda disponible, pero no inicia sola');
   assert.equal(descendants(el.map).filter((child) => child.tagName === 'line').length, 1);
   let shapes = descendants(el.map).filter((child) => child.attrs['data-node-id']);
   assert.deepEqual(shapes.map((shape) => shape.tagName), ['circle', 'polygon']);
@@ -377,4 +416,74 @@ test('no interpreta R₀ nulo como extinción cuando gamma es cero', async () =>
   await flush();
   assert.equal(el.r0.textContent, '—');
   assert.match(el['r0-meaning'].textContent, /no calculable/i);
+});
+
+test('la selección de estrategia aplica valores visibles sin simular ni inventar corridas', async () => {
+  const requests = [];
+  const { elements: el } = setup(async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return response(fixture());
+  });
+  el.controls.fire('submit'); await flush();
+  const count = requests.length;
+  assert.ok(el['strategy-proposed'] && el['strategy-random'] && el['strategy-none']);
+  el['strategy-random'].fire('click');
+  assert.equal(Number(el.n.value), requests[0].n);
+  assert.equal(Number(el.k_max.value), requests[0].intervention.k_max);
+  assert.equal(requests.length, count);
+  assert.match(el['scenario-note'].textContent, /asignación al azar/i);
+  el['strategy-none'].fire('click');
+  assert.equal(Number(el.k_max.value), 0);
+  assert.match(el['scenario-note'].textContent, /sin dosis/i);
+  assert.equal(requests.length, count);
+});
+
+test('el menú lateral se puede contraer y anuncia el estado accesible', () => {
+  const { elements: el } = setup();
+  el['sidebar-toggle'].fire('click');
+  assert.equal(el.layout.getAttribute('data-controls-open'), 'false');
+  assert.equal(el['sidebar-toggle'].getAttribute('aria-expanded'), 'false');
+  el['sidebar-toggle'].fire('click');
+  assert.equal(el.layout.getAttribute('data-controls-open'), 'true');
+  assert.equal(el['sidebar-toggle'].getAttribute('aria-expanded'), 'true');
+});
+
+test('el selector del gráfico abre los parámetros y carga valores de la última corrida', async () => {
+  const requests = [];
+  const { elements: el } = setup(async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return response(fixture());
+  });
+  el.controls.fire('submit'); await flush();
+  el['sidebar-toggle'].fire('click');
+  el['strategy-none'].fire('click');
+  assert.equal(el.layout.getAttribute('data-controls-open'), 'true');
+  assert.equal(el['sidebar-toggle'].getAttribute('aria-expanded'), 'true');
+  assert.equal(el['parameter-fields'].getAttribute('data-open'), 'true');
+  assert.equal(el['toggle-parameters'].getAttribute('aria-expanded'), 'true');
+  assert.equal(Number(el.k_max.value), 0);
+  assert.equal(requests.length, 1);
+});
+
+test('distribuye los nodos densos sin solapar símbolos y repite sus posiciones', async () => {
+  const data = fixture();
+  data.graph = { nodes: Array.from({ length: 286 }, (_, id) => ({
+    id, x: 50, y: 50, state: 'S', sector: 'tarqui',
+  })), edges: [] };
+  const { elements: el } = setup(async () => response(data));
+  const getPositions = () => descendants(el.map)
+    .filter(node => node.attrs['data-node-id'])
+    .map(node => ({ x: Number(node.attrs.cx), y: Number(node.attrs.cy), r: Number(node.attrs.r) }));
+  el.controls.fire('submit'); await flush();
+  const first = getPositions();
+  assert.equal(first.length, 286);
+  for (let left = 0; left < first.length; left++) {
+    for (let right = left + 1; right < first.length; right++) {
+      const distance = Math.hypot(first[left].x - first[right].x, first[left].y - first[right].y);
+      assert.ok(distance >= first[left].r + first[right].r,
+        `Los nodos ${left} y ${right} se solapan a distancia ${distance}.`);
+    }
+  }
+  el.controls.fire('submit'); await flush();
+  assert.deepEqual(getPositions(), first, 'La distribución visual debe ser determinista.');
 });

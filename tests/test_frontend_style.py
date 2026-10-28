@@ -41,6 +41,13 @@ class FrontendStyleTests(unittest.TestCase):
                 self.assertRegex(self.css, rf"\.node-{state}\b")
         self.assertIn("stroke-width", self.css)
 
+    def test_map_and_floating_playback_controls_have_reserved_space(self):
+        self.assertRegex(self.css, r"\.layout\[data-controls-open=\"false\"\]")
+        self.assertRegex(self.css, r"\.territory-shape\s*\{")
+        self.assertRegex(self.css, r"\.field-help:hover::after")
+        self.assertRegex(self.css, r"\.field-help:focus-visible::after")
+        self.assertRegex(self.css, r"\.day-balance[^}]*min-height")
+
 
 if __name__ == "__main__":
     unittest.main()
