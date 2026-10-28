@@ -1,14 +1,14 @@
 # Despliegue AWS por CLI + Docker — 28 de octubre de 2026
 
-Fuente de la imagen: commit `89eae64`, Linux amd64, Python 3.12.
+Fuente de la imagen: commit `a4d7bb2`, Linux amd64, Python 3.12.
 Región: `us-east-2`. Proyecto: `887324469817`.
 
 ## Recursos usados
 
 - ECR existente: `spookython-simulador`.
-- Etiqueta publicada: `git-89eae64`.
+- Etiqueta publicada: `git-a4d7bb2`.
 - Imagen fijada por digest:
-  `sha256:4d6d3969f4457aec736963f5dcb931f21a2bde20114eb155721084b7fb252005`.
+  `sha256:4ff5534241ce1dbfd134b0cc79d022ccf6d7ef71ee62647eaaca24b670b4d8c5`.
 - Clúster existente: `default`; servicio Express existente: `spookython-web`.
 - Servicio: `arn:aws:ecs:us-east-2:887324469817:service/default/spookython-web`.
 - Ejecución: `arn:aws:iam::887324469817:role/service-role/ecsTaskExecutionRole`.
@@ -36,8 +36,8 @@ No se alteraron roles de acceso humano ni se añadieron políticas de administra
 
 ```powershell
 aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 887324469817.dkr.ecr.us-east-2.amazonaws.com
-docker build --platform linux/amd64 -f infra/Dockerfile -t 887324469817.dkr.ecr.us-east-2.amazonaws.com/spookython-simulador:git-89eae64 .
-docker push 887324469817.dkr.ecr.us-east-2.amazonaws.com/spookython-simulador:git-89eae64
+docker build --platform linux/amd64 -f infra/Dockerfile -t 887324469817.dkr.ecr.us-east-2.amazonaws.com/spookython-simulador:git-a4d7bb2 .
+docker push 887324469817.dkr.ecr.us-east-2.amazonaws.com/spookython-simulador:git-a4d7bb2
 ```
 
 En este equipo falló el almacén de credenciales de Docker Desktop con
@@ -69,4 +69,6 @@ roles ya existían: no eliminarlos si otros recursos dependen de ellos. El
 presupuesto USD 5 es una alerta, no un tope automático. Verificar el correo
 destinatario y revisar AWS Settings > Billing durante el evento.
 
-Estado y pruebas HTTPS se registrarán al concluir la estabilización.
+El servicio quedó estable en la revisión 8 y conserva la URL pública
+`https://sp-5fba9b85d454464f8e6c6409e5df280d.ecs.us-east-2.on.aws`.
+Se verificaron `GET /health` y `POST /api/simulate` desde el endpoint HTTPS.

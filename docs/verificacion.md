@@ -66,10 +66,10 @@ Semilla oficial: propuesta 33 contagios acumulados, azar 146, sin intervención
 - [x] Región configurada us-east-2 y estado del plan consultados: FREE ACTIVE.
 - [x] Budget USD 5 existente y notificaciones consultadas; captura real incluida.
 - [ ] El destinatario debe **verificar su correo** en AWS Budgets; consola 0/1.
-- [ ] Sustituir imagen ECR y roles en `infra/ecs_service.json` y desplegar ECS.
-- [ ] Guardar URL HTTPS y comprobar salud/simulación desde una red externa.
+- [x] Imagen ECR y roles reales registrados en `infra/ecs_service.json`; ECS desplegado.
+- [x] URL HTTPS guardada y salud/simulación comprobadas desde el endpoint público.
 - [ ] Medir p95 cloud y registrar gasto final del evento.
-- [ ] Desplegar complemento Lambda/Step Functions solo tras validar la URL.
+- [x] Lambda/Step Functions desplegados y comparados con los artefactos locales.
 - [ ] Incorporar presentación del pitch antes de entregar al hackathon.
 
 La implementación local y los artefactos están preparados. La entrega cloud

@@ -116,16 +116,17 @@ puerto 8000, salud `/health`. El contenedor no necesita credenciales para
 simular. Step Functions Express + Lambda son un complemento condicional;
 `/api/batch` funciona localmente sin ellos.
 
-**Estado: servicio ECS y URL pública de esta versión pendientes de despliegue
-y verificación externa.** No se usa una URL del prototipo anterior como prueba
-de esta versión. Seguir la [receta](infra/README.md), completar imagen y roles
-en `infra/ecs_service.json`, y ejecutar:
+**Estado: servicio ECS desplegado y verificado con la imagen del commit
+`a4d7bb2`.** URL pública:
+https://sp-5fba9b85d454464f8e6c6409e5df280d.ecs.us-east-2.on.aws.
+La configuración reproducible está en `infra/ecs_service.json` y la operación
+se documenta en [la receta](infra/README.md).
 
 ```powershell
 aws ecs create-express-gateway-service --region us-east-2 --cli-input-json file://infra/ecs_service.json
 ```
 
-Guardar el ARN y comprobar HTTPS desde otra red. Después de evaluar:
+Después de evaluar:
 
 ```powershell
 aws ecs delete-express-gateway-service --region us-east-2 --service-arn <ARN>
