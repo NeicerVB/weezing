@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulador académico de Manta — Spookython</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <h1>Simulador de contención · Manta</h1>
+    <p class="disclaimer">Simulación computacional ficticia con fines académicos para el Spookython Hackathon. No constituye una predicción epidemiológica ni una recomendación sanitaria real.</p>
+  </header>
+  <main class="layout">
+    <section class="panel" aria-labelledby="controls-heading">
+      <h2 id="controls-heading">Brote Sorpresa · parámetros</h2>
+      <form id="controls">
+        <fieldset>
+          <legend>Red y transmisión</legend>
+          <label for="n">Población</label><input id="n" type="number" min="1" max="2000" step="1" value="1000">
+          <label for="days">Días</label><input id="days" type="number" min="1" max="90" step="1" value="60">
+          <label for="seed">Semilla</label><input id="seed" type="number" step="1" value="42">
+          <label for="degree">Grado medio</label><input id="degree" type="number" min="0" max="100" step="1" value="8">
+          <label for="beta">Contagio β</label><div class="slider"><input id="beta" type="range" min="0" max="1" step="0.001" value="0.03"><output id="beta-value" for="beta">0.03</output></div>
+          <label for="sigma">Incubación σ</label><input id="sigma" type="number" min="0" max="1" step="0.01" value="0.2">
+          <label for="gamma">Recuperación γ</label><input id="gamma" type="number" min="0" max="1" step="0.01" value="0.1">
+        </fieldset>
+        <fieldset>
+          <legend>Intervención</legend>
+          <label for="mode">Modo de cuota</label><select id="mode"><option value="dynamic">Dinámico</option><option value="static">Estático</option></select>
+          <label for="quota">Cuota diaria K</label><input id="quota" type="number" min="0" max="2000" step="1" value="30">
+          <label for="k_max">Tope acumulado K máx.</label><input id="k_max" type="number" min="0" max="2000" step="1" value="400">
+          <label for="efficacy">Eficacia vacunal η</label><div class="slider"><input id="efficacy" type="range" min="0" max="1" step="0.01" value="0.8"><output id="efficacy-value" for="efficacy">0.8</output></div>
+          <label for="include_frames">Animar la red</label><input id="include_frames" type="checkbox">
+        </fieldset>
+        <fieldset>
+          <legend>Infecciosos iniciales por sector</legend>
+          <label for="initial-tarqui">Tarqui</label><input id="initial-tarqui" type="number" min="0" max="2000" step="1" value="5">
+          <label for="initial-eloy_alfaro">Eloy Alfaro</label><input id="initial-eloy_alfaro" type="number" min="0" max="2000" step="1" value="0">
+          <label for="initial-los_esteros">Los Esteros</label><input id="initial-los_esteros" type="number" min="0" max="2000" step="1" value="2">
+          <label for="initial-manta_centro">Manta Centro</label><input id="initial-manta_centro" type="number" min="0" max="2000" step="1" value="0">
+          <label for="initial-murcielago">Murciélago</label><input id="initial-murcielago" type="number" min="0" max="2000" step="1" value="0">
+          <label for="initial-barbasquillo">Barbasquillo</label><input id="initial-barbasquillo" type="number" min="0" max="2000" step="1" value="0">
+          <label for="initial-san_mateo">San Mateo</label><input id="initial-san_mateo" type="number" min="0" max="2000" step="1" value="0">
+        </fieldset>
+        <button type="submit" id="simulate">Simular</button>
+      </form>
+      <p id="error" role="alert" aria-live="assertive" hidden></p>
+    </section>
+    <div class="results">
+      <section class="panel" aria-labelledby="map-heading">
+        <h2 id="map-heading">Red territorial</h2>
+        <p id="map-status" role="status" aria-live="polite">A la espera de datos de la red.</p>
+        <svg id="map" viewBox="0 0 100 100" role="img" aria-label="Estados de la red territorial por sector"></svg>
+        <ul class="legend" aria-label="Leyenda de estados">
+          <li class="node-s">Verde Círculo: susceptible (S)</li><li class="node-e">Amarillo Cuadrado: expuesto (E)</li>
+          <li class="node-i">Rojo Triángulo: infeccioso (I)</li><li class="node-r">Azul Círculo con Cruz: recuperado (R)</li>
+          <li class="node-vol">Celeste Estrella: brigadista (V)</li>
+        </ul>
+        <div class="playback"><button id="play" type="button" disabled>Reproducir</button><button id="pause" type="button" disabled>Pausar</button>
+          <label for="timeline">Día de la animación</label><input id="timeline" type="range" min="0" max="0" value="0" disabled>
+          <output id="day" for="timeline">Día 0</output>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="chart-heading">
+        <h2 id="chart-heading">Comparación de infecciones activas</h2>
+        <svg id="curve" viewBox="0 0 720 300" role="img" aria-label="Curvas de la propuesta, azar y sin intervención"></svg>
+        <p id="range-status" role="status">Rango empírico de simulación (p2.5 - p97.5): disponible si se aportan series diarias.</p>
+        <ul class="legend"><li>Propuesta · línea sólida</li><li>Azar · línea punteada</li><li>Sin intervención · línea discontinua</li></ul>
+      </section>
+      <section class="panel" aria-labelledby="metrics-heading">
+        <h2 id="metrics-heading">Indicadores de la simulación</h2>
+        <div class="kpis">
+          <article class="kpi featured"><h3>Número básico de reproducción R₀</h3><p id="r0" aria-live="polite">—</p><p id="r0-meaning" aria-live="polite"></p></article>
+          <article class="kpi"><h3>Contagios evitados</h3><p id="avoided" aria-live="polite">—</p></article>
+          <article class="kpi"><h3>Dosis gastadas</h3><p id="doses" aria-live="polite">—</p></article>
+          <article class="kpi"><h3>Pico de infección</h3><p id="peak" aria-live="polite">—</p></article>
+          <article class="kpi"><h3>Brigadistas activos</h3><p id="volunteers" aria-live="polite">—</p></article>
+        </div>
+        <table><caption>Métricas por estrategia</caption><thead><tr><th scope="col">Estrategia</th><th scope="col">Contagios acumulados</th><th scope="col">Pico de I</th><th scope="col">Dosis gastadas</th></tr></thead><tbody id="metrics-table"></tbody></table>
+      </section>
+      <details id="report" class="panel"><summary>Informe Ejecutivo para el COE Cantonal (Simulación Académica)</summary><div id="report-body" aria-live="polite">Ejecute la simulación para generar el informe.</div></details>
+    </div>
+  </main>
+</body>
+</html>
