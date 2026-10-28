@@ -76,6 +76,10 @@ rango empírico p2.5–p97.5, no un intervalo de confianza de la media.
 - `POST /api/simulate`: [contrato Anexo A](docs/superpowers/specs/2026-10-27-manta-containment-simulator-design.md).
 - `POST /api/batch`: `{"base": <configuración>, "replicas": 30}`. Máximo 100;
   retorna media, p2.5, p97.5, mínimo y máximo, sin trazas por nodo.
+  La opción adicional `include_series: true` entrega también las medias y
+  percentiles diarios agregados de I para las tres estrategias. El botón
+  «Comparar 30 réplicas Monte Carlo» dibuja esas medias y la banda de la propuesta;
+  las tarjetas y el informe conservan la simulación individual y lo indican.
 - Límites N=7–2000, días=0–90, grado=0–50 y menor que N, stock ≤ 0,40 N,
   cuerpo ≤ 64 KiB. Entradas inválidas: HTTP 400.
 - Máximo dos solicitudes de cálculo concurrentes; exceso: HTTP 429 y
@@ -83,9 +87,17 @@ rango empírico p2.5–p97.5, no un intervalo de confianza de la media.
   el servidor de salud y estáticos. Ejecutar un solo worker Uvicorn.
 - Sin animación: `frames: null`. Con animación: topología y diffs diarios;
   gzip mantiene la transferencia de la configuración oficial bajo 50 KB.
-  El JSON descomprimido es mayor.
+  El JSON descomprimido es mayor. Si una red grande excede 50 KB comprimidos,
+  se devuelven todas las curvas y métricas con `graph: null`, `frames: null`
+  y un aviso explícito para reducir N o el grado; no se truncan resultados.
 - R₀=β·grado/γ. Con γ=0 y β>0 se representa como `null`, evitando Infinity
   inválido en JSON; la interfaz indica «No calculable».
+- Contagios evitados conserva el signo: una réplica puede mostrar un valor
+  negativo si supera a la línea base. Sin E ni I no se gastan dosis. Los
+  sobrantes solo se reinvierten en hubs externos según el protocolo.
+- Al cambiar N, la interfaz ajusta el stock a ≤0,40N, el grado y los máximos
+  por sector. El grado real puede saturarse antes del solicitado en redes
+  densas para respetar las adyacencias territoriales.
 
 ## Arquitectura y despliegue
 
@@ -137,4 +149,10 @@ estrategias, brigadistas, frontend y API. Sin datasets del prototipo anterior.
 
 Red sintética y parámetros ilustrativos, sin validación clínica ni pronóstico
 sanitario. Las metas p95 se miden y dependen del hardware y CPU contratado;
-no se deducen de que las pruebas pasen.
+no se deducen de que las pruebas pasen. La última muestra local caliente
+dio p95=0,7264 s; Docker con 0,25 CPU dio 1,7058 s. Un lote completo de 30
+réplicas con ese límite CPU tardó 37,9644 s: **no cumple una meta de 3 s para
+Monte Carlo**. El complemento Pro requiere despliegue y mediciones propios.
+
+[Dictamen final para iniciar AWS](docs/dictamen-aws.md): auditoría local, pruebas
+de navegador y pendientes cloud diferenciados.

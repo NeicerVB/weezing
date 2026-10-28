@@ -9,4 +9,5 @@ build/
 dist/
 .env
 .env.*
+infra/*.local.json
 

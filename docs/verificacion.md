@@ -15,10 +15,10 @@ pruebas adicionales y CLI del motor como utilidades del equipo.
 
 ## Evidencia local
 
-- `python -m pytest -q`: **82 passed, 81 subtests passed**. Una advertencia de
+- `python -m pytest -q`: **115 passed, 81 subtests passed**. Una advertencia de
   dependencia: Starlette anuncia la futura retirada de su adaptador httpx;
   no hay pruebas fallidas.
-- `node --test tests/frontend.test.cjs`: **8/8**.
+- `node --test tests/frontend.test.cjs`: **11/11**.
 - Las pruebas API se escribieron antes de `app.py` y fallaron por ausencia del
   módulo; después pasaron. Regresiones posteriores se observaron en RED antes
   de corregir animación de vacunados, paridad de dosis y semillas batch.
@@ -38,20 +38,24 @@ una medición de AWS.
 
 | Perfil | Arranque frío | p95 caliente |
 |---|---:|---:|
-| ASGI local, CPU del equipo sin limitar | 1,3334 s | 0,6964 s |
-| Docker local, 0,25 CPU / 512 MiB | 1,8671 s | 1,2764 s |
+| ASGI local, CPU del equipo sin limitar | 1,4240 s | 0,7264 s |
+| Docker local, 0,25 CPU / 512 MiB | 2,0518 s | 1,7058 s |
 
 La meta local de 800 ms se cumple en la muestra caliente sin limitar CPU; no
 se cumple con CPU limitado. La meta cloud ≤3 s aún requiere medida en AWS.
-Los resultados brutos están en [local-verification.json](local-verification.json)
+Los resultados registrados están en [local-verification.json](local-verification.json)
 y [runtime-verification.json](runtime-verification.json).
 
-Con `Accept-Encoding: gzip`, en el contenedor se midieron 2.740 bytes para la
-respuesta normal y **28.698 bytes** con animación. El JSON de animación sin
+Con `Accept-Encoding: gzip`, en el contenedor se midieron 2.736 bytes para la
+respuesta normal y **28.692 bytes** con animación. El JSON de animación sin
 comprimir supera 50 KB: la garantía corresponde a transferencia comprimida de
 la configuración oficial, no a cualquier entrada máxima ni a clientes sin gzip.
-Un lote de prueba reducido de tres réplicas ocupó 741 bytes comprimidos;
+Un lote de prueba reducido de tres réplicas ocupó 755 bytes comprimidos;
 las pruebas también verifican que el JSON agregado descomprimido quede <30 KB.
+Un lote completo de 30 réplicas con series diarias ocupó 4.256 bytes JSON y
+tardó 37,9644 s con CPU limitado; no se afirma que Monte Carlo cumpla 3 s.
+Véase el [dictamen final](dictamen-aws.md) para correcciones, navegador real y
+condiciones de entrada a AWS.
 
 Semilla oficial: propuesta 33 contagios acumulados, azar 146, sin intervención
 307; dosis 400/400/0. Son resultados sintéticos del modelo, no pronósticos reales.
