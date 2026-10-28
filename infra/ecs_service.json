@@ -4,7 +4,7 @@
   "executionRoleArn": "arn:aws:iam::887324469817:role/service-role/ecsTaskExecutionRole",
   "infrastructureRoleArn": "arn:aws:iam::887324469817:role/service-role/ecsInfrastructureRoleForExpressServices",
   "primaryContainer": {
-    "image": "887324469817.dkr.ecr.us-east-2.amazonaws.com/spookython-simulador@sha256:4d6d3969f4457aec736963f5dcb931f21a2bde20114eb155721084b7fb252005",
+    "image": "887324469817.dkr.ecr.us-east-2.amazonaws.com/spookython-simulador@sha256:96343d4fc6c538ee85e24501c415ceabe7850eba5a3436fc24a35d527114693c",
     "containerPort": 8000,
     "awsLogsConfiguration": {"logGroup": "/aws/ecs/default/spookython-web-14ac", "logStreamPrefix": "ecs"}
   },
