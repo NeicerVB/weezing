@@ -61,6 +61,67 @@ function setup(fetchImpl = async () => response(fixture())) {
 
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 
+test('solicita Monte Carlo explícito y dibuja medias con rango empírico real', async () => {
+  const requests = [];
+  const { elements: el } = setup(async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    if (url === '/api/simulate') return response(fixture());
+    return response({ replicas: 30, series: {
+      proposed: { mean: [2,4], p2_5: [2,1], p97_5: [2,6] },
+      random: { mean: [2,5], p2_5: [2,3], p97_5: [2,8] },
+      none: { mean: [2,7], p2_5: [2,5], p97_5: [2,10] },
+    }, strategies: {} });
+  });
+  assert.ok(el['run-batch'], 'Falta el control Monte Carlo');
+  el.controls.fire('submit');
+  await flush();
+  el['run-batch'].fire('click');
+  await flush();
+  assert.equal(requests[1].url, '/api/batch');
+  assert.equal(requests[1].body.replicas, 30);
+  assert.equal(requests[1].body.include_series, true);
+  assert.equal(descendants(el.curve).filter(item => item.tagName === 'polygon').length, 1);
+  assert.match(el['monte-carlo-status'].textContent, /30/);
+  assert.match(el['monte-carlo-status'].textContent, /media/i);
+});
+
+test('mantiene Monte Carlo ocupado hasta que termine el lote anterior al cambiar parámetros', async () => {
+  let releaseBatch;
+  let releaseNew;
+  let simulations = 0;
+  const { elements: el, tick } = setup((url) => {
+    if (url === '/api/batch') return new Promise(resolve => { releaseBatch = resolve; });
+    simulations += 1;
+    if (simulations === 1) return Promise.resolve(response(fixture()));
+    return new Promise(resolve => { releaseNew = resolve; });
+  });
+  el.controls.fire('submit');
+  await flush();
+  el['run-batch'].fire('click');
+  el.seed.value = '43';
+  el.controls.fire('input');
+  tick(150);
+  releaseNew(response(fixture()));
+  await flush();
+  assert.equal(el['run-batch'].disabled, true);
+  releaseBatch(response({})); // Ya obsoleto: no se deben leer sus series.
+  await flush();
+  assert.equal(el['run-batch'].disabled, false);
+  assert.equal(descendants(el.curve).filter(item => item.tagName === 'polygon').length, 0);
+});
+
+test('ajusta stock y grado válidos cuando cambia la población del Brote Sorpresa', () => {
+  const { elements: el } = setup();
+  el.n.value = '7';
+  el.controls.fire('input');
+  assert.equal(Number(el.k_max.value), 2);
+  assert.equal(el.k_max.getAttribute('max'), '2');
+  assert.equal(Number(el.degree.value), 6);
+  assert.equal(el.degree.getAttribute('max'), '6');
+  assert.equal(Number(el['initial-tarqui'].value), 1);
+  assert.equal(Number(el['initial-los_esteros'].value), 1);
+});
+
 function fixture() {
   const proposed = {
     days: [{ day: 0, i: 2 }, { day: 1, i: 3 }],

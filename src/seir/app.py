@@ -1,5 +1,7 @@
 """API oficial del simulador de Manta y servidor de la interfaz de Dev 2."""
 import asyncio
+import gzip
+import json
 import math
 import random
 from concurrent.futures import ProcessPoolExecutor
@@ -52,14 +54,30 @@ def simulate_request(payload: dict) -> dict:
                       for i, xy in enumerate(graph.coords)],
             "edges": list(graph.graph.unique_edges()),
         }
+        encoded = json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        if len(gzip.compress(encoded, compresslevel=6)) >= 50_000:
+            result["graph"] = None
+            result["frames"] = None
+            result["meta"]["animation_warning"] = (
+                "La animación supera 50 KB comprimidos. Se conservan todas las curvas y métricas; "
+                "reduzca población o grado para animar la red."
+            )
     return result
 
 
-def replica_metrics(payload: dict) -> dict:
+def replica_metrics(payload: dict, include_series: bool = False) -> dict:
     result = simulate_request(payload | {"include_frames": False})
-    return {"r0": result["meta"]["r0"], "strategies": {
+    summary = {"r0": result["meta"]["r0"], "strategies": {
         key: value["metrics"] for key, value in result["strategies"].items()
     }}
+    if include_series:
+        summary["series"] = {key: [row["i"] for row in strategy["days"]]
+                             for key, strategy in result["strategies"].items()}
+    return summary
+
+
+def batch_replica(job: dict) -> dict:
+    return replica_metrics(job["base"], job["include_series"])
 
 
 def aggregate_replicas(results: list[dict]) -> dict:
@@ -72,11 +90,20 @@ def aggregate_replicas(results: list[dict]) -> dict:
             return values[lo] + (values[hi] - values[lo]) * (index - lo)
         return {"mean": sum(values) / len(values), "p2_5": percentile(.025),
                 "p97_5": percentile(.975), "min": values[0], "max": values[-1]}
-    return {"replicas": len(results), "r0": results[0]["r0"], "strategies": {
+    summary = {"replicas": len(results), "r0": results[0]["r0"], "strategies": {
         strategy: {metric: describe([r["strategies"][strategy][metric] for r in results])
                    for metric in ("avoided_infections", "peak_i", "doses_spent")}
         for strategy in ("proposed", "random", "none")
     }}
+    if all("series" in result for result in results):
+        summary["series"] = {}
+        for strategy in ("proposed", "random", "none"):
+            days = len(results[0]["series"][strategy])
+            daily = [describe([result["series"][strategy][day] for result in results]) for day in range(days)]
+            summary["series"][strategy] = {
+                key: [round(row[key], 4) for row in daily]
+                for key in ("mean", "p2_5", "p97_5")}
+    return summary
 
 
 @asynccontextmanager
@@ -93,7 +120,11 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 @app.exception_handler(RequestValidationError)
 async def invalid_request(request, error):
-    return JSONResponse(status_code=400, content={"error": "Parámetro inválido: " + str(error)})
+    problems = error.errors()
+    first = problems[0] if problems else {}
+    field = ".".join(str(part) for part in first.get("loc", ()) if part != "body")
+    message = first.get("msg", "Entrada inválida")
+    return JSONResponse(status_code=400, content={"error": f"Parámetro inválido: {field}: {message}"})
 
 
 @app.middleware("http")
@@ -157,7 +188,7 @@ async def simulate(body: SimulateRequest, request: Request):
 async def batch(body: BatchRequest, request: Request):
     payload = body.base.model_dump()
     results = await execute(request, [
-        (replica_metrics, payload | {"seed": body.base.seed + index})
+        (batch_replica, {"base": payload | {"seed": body.base.seed + index}, "include_series": body.include_series})
         for index in range(body.replicas)
     ])
     return aggregate_replicas(results)

@@ -59,12 +59,19 @@ class SimulateRequest(RequestModel):
                 raise ValueError("initial_ids fuera de rango")
         elif sum(self.initial.values()) > self.n:
             raise ValueError("Los infectados iniciales superan N")
+        if self.initial_ids is None:
+            base, remainder = divmod(self.n, len(SECTORS))
+            for index, sector in enumerate(SECTORS):
+                capacity = base + (index < remainder)
+                if self.initial.get(sector, 0) > capacity:
+                    raise ValueError(f"Los infectados iniciales superan la población de {sector}: {capacity}")
         return self
 
 
 class BatchRequest(RequestModel):
     base: SimulateRequest = Field(default_factory=SimulateRequest)
     replicas: int = Field(default=30, ge=1, le=100)
+    include_series: bool = False
 
     @model_validator(mode="after")
     def validate_seed_range(self):

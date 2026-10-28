@@ -21,7 +21,7 @@ def application():
     return importlib.import_module("seir.app").app
 
 
-def test_health_and_official_frontend(application):
+def test_static_health_and_official_frontend(application):
     with TestClient(application) as client:
         assert client.get("/health").json() == {"status": "healthy"}
         assert "Simulación computacional ficticia" in client.get("/").text
@@ -156,3 +156,68 @@ def test_random_baseline_keeps_daily_parity_when_susceptibles_run_out(applicatio
     proposed = data["strategies"]["proposed"]["days"]
     random_days = data["strategies"]["random"]["days"]
     assert [r["doses_administered"] for r in proposed] == [r["doses_administered"] for r in random_days]
+
+
+def test_sector_input_is_rejected_before_building_graph():
+    from pydantic import ValidationError
+    from seir.config import SimulateRequest
+    with pytest.raises(ValidationError):
+        SimulateRequest.model_validate({"n":70,"initial":{"tarqui":11}})
+
+
+def test_batch_daily_empirical_range_is_opt_in_and_bounded(application):
+    with TestClient(application) as client:
+        response = client.post("/api/batch", json={"base": PAYLOAD, "replicas": 3, "include_series": True})
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(response.content) < 30_000
+        assert "graph" not in data and "frames" not in data
+        for series in data["series"].values():
+            assert len(series["mean"]) == len(series["p2_5"]) == len(series["p97_5"]) == 9
+            assert series["mean"][0] == series["p2_5"][0] == series["p97_5"][0] == 7
+            assert all(a <= b for a, b in zip(series["p2_5"], series["p97_5"]))
+        normal = client.post("/api/batch", json={"base": PAYLOAD, "replicas": 1}).json()
+        assert "series" not in normal
+
+
+def test_validation_errors_do_not_disclose_server_paths(application):
+    with TestClient(application) as client:
+        response = client.post("/api/simulate", json={"n": 2001})
+        assert response.status_code == 400
+        assert "File " not in response.json()["error"]
+        assert "app.py" not in response.json()["error"]
+        assert "n" in response.json()["error"]
+
+
+def test_input_guards_and_rate_limiting(application):
+    async def exercise():
+        async with application.router.lifespan_context(application):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=application), base_url="http://test") as client:
+                assert (await client.post("/api/simulate", json={"n":2001})).status_code == 400
+                tasks = [asyncio.create_task(client.post("/api/batch", json={"base": PAYLOAD, "replicas":30})) for _ in range(2)]
+                try:
+                    for _ in range(1000):
+                        if application.state.capacity.locked():
+                            break
+                        await asyncio.sleep(.001)
+                    assert application.state.capacity.locked()
+                    rejected = await asyncio.wait_for(client.post("/api/simulate", json=PAYLOAD), timeout=1)
+                    assert rejected.status_code == 429
+                    assert rejected.headers["Retry-After"] == "2"
+                    assert (await asyncio.wait_for(client.get("/health"), timeout=1)).status_code == 200
+                finally:
+                    completed = await asyncio.gather(*tasks)
+                assert all(response.status_code == 200 for response in completed)
+    asyncio.run(exercise())
+
+
+def test_oversized_animation_falls_back_explicitly_to_curves(application):
+    with TestClient(application) as client:
+        response = client.post("/api/simulate", json={"n":2000, "degree":50, "include_frames":True})
+        assert response.status_code == 200
+        assert int(response.headers["Content-Length"]) < 50_000
+        data = response.json()
+        assert data["frames"] is None
+        assert data["graph"] is None
+        assert "animation_warning" in data["meta"]
+        assert len(data["strategies"]["proposed"]["days"]) == 61

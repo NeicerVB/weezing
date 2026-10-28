@@ -12,6 +12,27 @@ let playback;
 let frames = [];
 let currentDay = 0;
 let points = new Map();
+let lastSimulation = null;
+let lastPayload = null;
+let lastSimulationId = -1;
+let batchBusy = false;
+let lastPopulation = value("n");
+
+function syncPopulationLimits() {
+  const n = value("n");
+  if (!Number.isInteger(n) || n < 7 || n > 2000) return;
+  const changed = n !== lastPopulation;
+  const limits = [["k_max", Math.floor(.4 * n)], ["degree", Math.min(50, n - 1)]];
+  SECTORS.forEach((sector, index) => {
+    limits.push([`initial-${sector}`, Math.floor(n / 7) + (index < n % 7 ? 1 : 0)]);
+  });
+  for (const [id, maximum] of limits) {
+    field(id).setAttribute("max", maximum);
+    if (changed && value(id) > maximum) field(id).value = String(maximum);
+  }
+  lastPopulation = n;
+}
+syncPopulationLimits();
 
 function payload() {
   const initial = {};
@@ -61,25 +82,30 @@ async function fetchSimulation(id) {
       }
       return;
     }
-    show(data);
+    show(data, body);
   } catch (error) {
     if (id === requestId) alertUser("No se pudo conectar con el servidor. Inténtelo de nuevo.");
   }
 }
 
 form.addEventListener("input", () => {
+  syncPopulationLimits();
+  field("run-batch").disabled = true;
   for (const id of ["beta", "efficacy"]) field(`${id}-value`).textContent = field(id).value;
   clearTimeout(debounce);
   const id = ++requestId;
   debounce = setTimeout(() => fetchSimulation(id), 150);
 });
 form.addEventListener("change", () => {
+  syncPopulationLimits();
+  field("run-batch").disabled = true;
   clearTimeout(debounce);
   const id = ++requestId;
   debounce = setTimeout(() => fetchSimulation(id), 150);
 });
 form.addEventListener("submit", (event) => {
   event.preventDefault();
+  field("run-batch").disabled = true;
   clearTimeout(debounce);
   fetchSimulation(++requestId);
 });
@@ -216,7 +242,7 @@ function drawMap(data) {
   map.replaceChildren();
   const graph = data.graph;
   if (!graph || !Array.isArray(graph.nodes) || !graph.nodes.length) {
-    field("map-status").textContent = "Red territorial no disponible en esta respuesta; las curvas y métricas siguen visibles.";
+    field("map-status").textContent = data.meta?.animation_warning || "Red territorial no disponible en esta respuesta; las curvas y métricas siguen visibles.";
   } else {
     for (const edge of graph.edges || []) {
       const [source, target] = edge;
@@ -272,9 +298,52 @@ function metrics(data) {
     `reinfecciones ocupacionales: ${metric.volunteer_reinfections ?? 0}. ` + DISCLAIMER;
 }
 
-function show(data) {
+function show(data, body) {
+  lastSimulation = data;
+  lastPayload = body;
+  lastSimulationId = requestId;
   drawCurves(data);
   drawMap(data);
   metrics(data);
   field("error").hidden = true;
+  field("run-batch").disabled = batchBusy;
+  field("monte-carlo-status").textContent = "Curvas, tarjetas e informe: simulación individual con la semilla elegida.";
 }
+
+field("run-batch").addEventListener("click", async () => {
+  if (!lastSimulation || !lastPayload || batchBusy || lastSimulationId !== requestId) return;
+  const id = requestId;
+  const original = lastSimulation;
+  batchBusy = true;
+  field("run-batch").disabled = true;
+  field("monte-carlo-status").textContent = "Calculando 30 réplicas Monte Carlo…";
+  try {
+    const response = await fetch("/api/batch", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ base: lastPayload, replicas: 30, include_series: true }),
+    });
+    const data = await response.json();
+    if (id !== requestId) return;
+    if (!response.ok) {
+      const retry = response.headers.get("Retry-After");
+      throw new Error(`${data.error || "No se pudo calcular Monte Carlo."}${retry ? ` Reintente en ${retry} segundos.` : ""}`);
+    }
+    const strategies = {};
+    for (const key of ["proposed", "random", "none"]) {
+      strategies[key] = {
+        days: data.series[key].mean.map((count, day) => ({ day, i: count })),
+        metrics: { peak_i: Math.max(...data.series[key].mean) },
+      };
+    }
+    drawCurves({ strategies, range: data.series.proposed });
+    field("monte-carlo-status").textContent = `Curvas: medias de ${data.replicas} réplicas; banda: rango empírico de la propuesta. Tarjetas e informe: simulación individual, semilla ${original.meta.seed ?? lastPayload.seed}.`;
+  } catch (error) {
+    if (id === requestId) {
+      alertUser(error.message || "No se pudo conectar con el servidor.");
+      field("monte-carlo-status").textContent = "Monte Carlo no disponible; se conserva la gráfica anterior.";
+    }
+  } finally {
+    batchBusy = false;
+    field("run-batch").disabled = !lastPayload || lastSimulationId !== requestId;
+  }
+});
