@@ -36,7 +36,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(len(data["days"]), 4)
         self.assertEqual(
             set(data["days"][0]),
-            {"day", "s", "e", "i", "r", "new_s_to_e", "cumulative"},
+            {
+                "day", "s", "e", "i", "r", "new_s_to_e", "cumulative",
+                "doses_administered", "active_volunteers", "volunteer_reinfections",
+            },
         )
 
     def test_edges_has_priority_over_degree(self):

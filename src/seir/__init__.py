@@ -3,7 +3,7 @@
 from .config import InitialState, SimulationConfig, resolve_initial_sets
 from .engine import DayRecord, SeirEngine, SimulationResult, simulate
 from .graph import Graph, generate_graph, load_edges
-from .states import STATE_ORDER, State
+from .states import STATE_ORDER, NodeModifier, State
 from .topology import (
     SECTORS,
     SECTOR_ADJACENCY,

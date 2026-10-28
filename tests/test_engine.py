@@ -140,6 +140,14 @@ class EngineTests(unittest.TestCase):
             self.assertEqual(counts["I"], record.i, f"I difiere en día {day}")
             self.assertEqual(counts["R"], record.r, f"R difiere en día {day}")
 
+    def test_extended_day_record_fields(self):
+        graph = seeded_graph(30, 4, 1)
+        config = self.config(days=5, i0=2)
+        records = simulate(graph, config).records
+        for record in records:
+            self.assertEqual(record.doses_administered, 0)
+            self.assertEqual(record.active_volunteers, 0)
+            self.assertEqual(record.volunteer_reinfections, 0)
 
 
 if __name__ == "__main__":
