@@ -27,6 +27,7 @@ class DayRecord:
     doses_administered: int = 0
     active_volunteers: int = 0
     volunteer_reinfections: int = 0
+    imported_cases: int = 0
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,11 @@ class SimulationResult:
     transition_r: dict[int, int] | None = None
 
     def to_rows(self) -> list[dict]:
-        return [asdict(record) for record in self.records]
+        rows = [asdict(record) for record in self.records]
+        if self.config.import_node is None:
+            for row in rows:
+                row.pop("imported_cases")
+        return rows
 
     def to_payload(self) -> dict:
         meta = asdict(self.config)
@@ -227,7 +232,15 @@ class SeirEngine:
             self.state[node] = State.E
             self.transition_e[node] = day
 
-        new_infections = len(to_exposed) + len(to_reinfected)
+        imported_cases = 0
+        if day == 1 and config.import_node is not None:
+            node = config.import_node
+            self.state[node] = State.I
+            self.transition_i[node] = day
+            self.modifiers[node].pending_vaccine_day = None
+            imported_cases = 1
+
+        new_infections = imported_cases + len(to_exposed) + len(to_reinfected)
         self.cumulative += new_infections
 
         counts = self._counts()
@@ -246,6 +259,7 @@ class SeirEngine:
             doses_administered=self.doses_by_day.get(day, 0),
             active_volunteers=active_volunteers,
             volunteer_reinfections=len(to_reinfected),
+            imported_cases=imported_cases,
         )
 
     def run(self) -> list[DayRecord]:

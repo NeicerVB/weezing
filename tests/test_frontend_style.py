@@ -52,6 +52,42 @@ class FrontendStyleTests(unittest.TestCase):
         self.assertRegex(self.css, r"\.map-surface\s+\.day-balance\s+\.node-i\s*\{[^}]*background:\s*var\(--color-i\)")
         self.assertRegex(self.css, r"@media\s*\(max-width:\s*1000px\)[^{]*\{[\s\S]*?\.map-surface\s+\.day-balance\s*\{[^}]*top:\s*56px")
 
+    def test_floating_state_cards_stack_values_and_reserve_map_space(self):
+        self.assertRegex(self.css, r"\.map-surface \.day-balance>span\s*\{[^}]*grid-template-columns:\s*14px minmax\(0,1fr\);[^}]*grid-template-rows:\s*auto auto")
+        self.assertRegex(self.css, r"\.map-surface \.day-balance strong\s*\{[^}]*grid-column:\s*1 / -1")
+
+    def test_map_fills_surface_behind_overlays_and_connections_can_hide(self):
+        self.assertRegex(self.css, r"#map\s*\{[^}]*position:\s*absolute[^}]*inset:\s*0[^}]*width:\s*100%[^}]*height:\s*100%")
+        self.assertRegex(self.css, r"#map\[data-show-connections=\"false\"\] \.edge\s*\{[^}]*display:\s*none")
+
+    def test_sector_boundaries_use_bright_overlay_stroke(self):
+        self.assertRegex(self.css, r"#map \.sector-boundary\s*\{[^}]*stroke:\s*var\(--color-vol\)[^}]*stroke-opacity:\s*\.98[^}]*pointer-events:\s*none")
+
+    def test_map_canvas_scales_taller_than_default_panel(self):
+        self.assertRegex(self.css, r"\.map-surface\s*\{[^}]*min-height:\s*max\(560px,min\(75vh,850px\)\)")
+
+    def test_sector_legend_is_visible_and_reflows_on_small_screens(self):
+        self.assertRegex(self.css, r"\.sector-legend\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(4,minmax\(0,1fr\)\)")
+        self.assertRegex(self.css, r"\.sector-legend li:before\s*\{[^}]*content:\s*attr\(data-number\)")
+        self.assertRegex(self.css, r"@media\s*\(max-width:\s*780px\)[^{]*\{[\s\S]*?\.sector-legend\s*\{[^}]*grid-template-columns:\s*repeat\(2,minmax\(0,1fr\)\)")
+        self.assertRegex(self.css, r"\.map-toolbar\s*\{[^}]*position:\s*absolute")
+        self.assertRegex(self.css, r"\.map-surface \.day-balance\s*\{[^}]*position:\s*absolute")
+        self.assertNotRegex(self.css, r"\.map-toolbar,\.map-surface \.day-balance\s*\{[^}]*display:\s*none")
+
+    def test_large_screen_rule_does_not_shrink_map_canvas(self):
+        self.assertNotRegex(self.css, r"#map\s*\{[^}]*height:\s*450px")
+
+    def test_field_tooltips_stay_inside_the_viewport(self):
+        self.assertRegex(self.css, r"\.field-help:hover::after,\.field-help:focus-visible::after\s*\{[^}]*left:\s*0[^}]*max-width:\s*min\(260px,calc\(100vw - 32px\)\)[^}]*transform:\s*none")
+
+    def test_stock_limit_note_is_a_separate_line(self):
+        self.assertRegex(self.css, r"\.controls-panel label \.field-note\s*\{[^}]*display:\s*block")
+
+    def test_workspace_uses_full_browser_width_and_inline_parameter_hints(self):
+        self.assertRegex(self.css, r"\.site-header\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none")
+        self.assertRegex(self.css, r"\.intro,\.disclaimer,\.layout,\.site-footer\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none")
+        self.assertRegex(self.css, r"\.controls-panel label span:not\(\.field-help\):not\(\.field-note\)\s*\{[^}]*display:\s*inline")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,7 +1,7 @@
 # Simulador de Contención Epidémica de Manta (Proyecto Weezing)
 
 **Spookython · Track B: Modelos y Algoritmos de Contención**  
-Herramienta de simulación computacional que modela la propagación de un patógeno respiratorio agudo en una red de contactos sintética de siete sectores urbanos de Manta (Ecuador). El sistema optimiza la asignación de recursos limitados mediante un protocolo territorial en cascada y demuestra cuantitativamente el beneficio frente a actuar al azar o no intervenir.
+Simulación computacional ficticia de estados SEIR sobre una red sintética de siete sectores de Manta (Ecuador). Compara un protocolo territorial de recursos limitados con una asignación al azar y con la ausencia de intervención, bajo las mismas condiciones iniciales. Los parámetros son abstractos, sin calibración a un patógeno real.
 
 > **Aviso de alcance:** Simulación computacional académica desarrollada exclusivamente para el hackathon Spookython. Los parámetros son ilustrativos y no constituyen predicción epidemiológica ni recomendación sanitaria clínica oficial.
 
@@ -9,8 +9,8 @@ Herramienta de simulación computacional que modela la propagación de un patóg
 
 ## Resumen del Escenario Epidemiológico
 
-- **El patógeno:** Transmisión aérea por microgotas/aerosoles en contactos cercanos. Dinámica temporal gobernada por un autómata celular estocástico de estados discretos **SEIR** ($S \to E \to I \to R$), con periodo de latencia/incubación medio de 5 días ($\sigma = 0.2$), periodo infeccioso de 10 días ($\gamma = 0.1$) y tasa de transmisión basal $\beta = 0.03$. Número reproductivo básico de referencia: $R_0 = \frac{\beta \cdot \langle k \rangle}{\gamma} \approx 2.4$.
-- **La población:** Red de contactos sintética de $N = 1000$ habitantes estructurada en 7 sectores de Manta (*Tarqui, Los Esteros, Manta Centro, Eloy Alfaro, San Mateo, Barbasquillo y San Lorenzo*). El grafo garantiza adyacencias libres de colisiones visuales mediante dispersión radial por filotaxis áurea e interconexión mediante 4 puentes intersectoriales clave y hubs de alta densidad.
+- **El modelo:** Autómata discreto y estocástico **SEIR** ($S \to E \to I \to R$), con actualizaciones simultáneas una vez al día. Los valores por defecto son ilustrativos; no describen un patógeno real.
+- **La población:** Red sintética repartida entre *Tarqui, Eloy Alfaro, Los Esteros, Manta Centro, Murciélago, Barbasquillo y San Mateo*. La interfaz conserva un contorno ilustrativo y siete regiones; no representa cartografía ni contactos reales.
 - **La intervención:** Vacunación focalizada con vacuna imperfecta tipo *leaky* (eficacia $\eta = 0.8$, reduciendo la probabilidad de contagio en un 80%), soporte de brigadistas comunitarios voluntarios ($v = 0.12$) y stock restringido al 40% de la población ($K = 400$ dosis).
 - **Regla estricta de elegibilidad:** El algoritmo solo vacuna a individuos en estado Susceptible ($S$). Nunca se desperdician dosis en personas ya infectadas ($E, I$) o recuperadas/inmunes ($R$).
 
@@ -97,7 +97,7 @@ Con el servidor encendido en el paso anterior, el jurado puede validar inmediata
 Abre en tu navegador:  
 👉 **`http://localhost:8000`**
 
-La interfaz carga automáticamente la simulación oficial, animando la propagación en el mapa interactivo de Manta, graficando las curvas epidemiológicas y desplegando el balance final comparativo.
+La interfaz no ejecuta cálculos al abrirse. Selecciona **Personaliza el escenario**, acepta el borrador y pulsa **Ejecutar simulación**. Los escenarios base del editor son distintos de los botones que cargan parámetros de las tres estrategias comparadas; no reemplazan el archivo de ejemplo de la API.
 
 ### Vía Terminal / API (Auditoría Técnica sin navegador)
 *(Ejecutar en una segunda ventana de terminal mientras el servidor del Paso 1 continúa corriendo)*
@@ -128,15 +128,9 @@ $res = Invoke-RestMethod http://localhost:8000/api/simulate -Method Post -Conten
 } | ConvertTo-Json -Depth 3
 ```
 
-### Tabla Comparativa de Resultados Oficiales
+### Resultados reproducibles
 
-| Estrategia | Contagios Acumulados | Contagios Evitados | Dosis Aplicadas | Efectividad Relativa |
-|---|---:|---:|---:|---:|
-| **Propuesta (Protocolo Cascada Manta)** | **33** | **274** | **400** | **+70.2% vs Azar** |
-| Intervención al Azar (Mismas dosis/día) | 146 | 161 | 400 | Línea base estocástica |
-| Sin Intervención (Control pasivo) | 307 | 0 | 0 | Línea base natural |
-
-*Contagios evitados calculados como la diferencia emparejada directa frente a «Sin Intervención». Ver detalles en [docs/verificacion.md](docs/verificacion.md).*
+La respuesta de la API incluye métricas y curvas para las tres estrategias. Usa los resultados calculados para la configuración y semilla solicitadas; no se garantiza que una estrategia gane en cada corrida estocástica.
 
 ---
 
@@ -145,11 +139,11 @@ $res = Invoke-RestMethod http://localhost:8000/api/simulate -Method Post -Conten
 Durante la evaluación en vivo (5 minutos de ajuste ante el Brote Sorpresa impuesto por el jurado), no es necesario reiniciar el servidor ni editar código:
 
 - **Sliders interactivos en tiempo real:** Desde la interfaz web (`http://localhost:8000`), el jurado y el equipo pueden alterar de inmediato cualquier condición crítica:
-  - *Virulencia del patógeno:* modificar la probabilidad de contagio ($\beta$) o el grado de contacto.
+  - *Probabilidad abstracta de transición:* modificar la probabilidad de contagio ($\beta$) o el grado de contacto.
   - *Restricción de insumos:* recortar el stock total de vacunas o variar la cuota de aplicación diaria.
   - *Foco territorial alternativo:* desplazar el brote inicial hacia cualquiera de los 7 sectores urbanos.
-  - *Eficacia reducida:* ajustar la protección de la vacuna ($\eta$) ante nuevas variantes.
-- **Botón Aleatorio («🎲»):** Genera en 1 clic un escenario epidemiológico válido con semilla pseudoaleatoria fresca, recalculando automáticamente las tres estrategias para demostrar la superioridad consistente del protocolo territorial.
+  - *Eficacia ilustrativa:* ajustar el parámetro de protección ($\eta$).
+- **Botón Aleatorio («🎲»):** Carga un borrador con otra semilla y parámetros válidos; no lo acepta, guarda ni ejecuta automáticamente. Acepta el borrador y ejecuta para calcular las tres estrategias.
 
 ---
 
@@ -158,8 +152,8 @@ Durante la evaluación en vivo (5 minutos de ajuste ante el Brote Sorpresa impue
 El proyecto implementa las capacidades avanzadas de la rúbrica oficial:
 
 - [x] **Monte Carlo en paralelo (30 réplicas):** Endpoint `POST /api/batch` que computa agregaciones estocásticas reportando media, mínimo, máximo y rango empírico $p2.5 - p97.5$.
-- [x] **Visualización territorial animada (SVG Nativo):** Mapa interactivo de Manta con renderizado *diff-only* sobre *requestAnimationFrame* a 60 fps, con soporte completo de Pan & Zoom y sin dependencias de frameworks pesados.
-- [x] **Informe ejecutivo para tomadores de decisiones:** Resumen en lenguaje natural generado dinámicamente con balance de contagios evitados, saturación hospitalaria y recomendaciones territoriales.
+- [x] **Visualización territorial animada (SVG Nativo):** Mapa interactivo de Manta con actualizaciones diarias por diferencias, con soporte completo de Pan & Zoom y sin dependencias de frameworks pesados.
+- [x] **Informe ejecutivo para tomadores de decisiones:** Resumen académico al completar la reproducción, con métricas de la corrida y, cuando se solicitan, agregados Monte Carlo claramente separados. No calcula saturación hospitalaria ni recomendaciones sanitarias.
 - [x] **Intervención multidimensional:** Combinación sinérgica de vacunación *leaky* con brigadistas comunitarios y reasignación dinámica de cuotas sobrantes.
 - [x] **Arquitectura desacoplada Cloud-Ready:** Preparado para orquestación masiva mediante AWS Step Functions Express y workers AWS Lambda.
 
@@ -244,11 +238,10 @@ En cumplimiento con el punto 8 de los requisitos del reto, se detalla el origen 
 
 1. **Estructura del Grafo Territorial:**
    - La población de Manta se agrupa en 7 sectores representativos. Los puentes intersectoriales representan las vías principales de conexión física (avenidas y accesos interparroquiales). Al blindar estos puentes, la propagación queda confinada a focos aislados.
-2. **Parámetros Biológicos:**
-   - $\sigma = 0.2$ modela un periodo de incubación latente de $1/\sigma = 5$ días, característico de infecciones respiratorias virales agudas.
-   - $\gamma = 0.1$ representa un periodo de transmisibilidad de $1/\gamma = 10$ días antes de la recuperación del huésped.
-   - $\beta = 0.03$ por contacto, combinado con un grado medio de 8 contactos diarios estrechos, genera una tasa de ataque basal calibrada para escenarios urbanos compactos.
-3. **Estrategia Territorial en Cascada (Por qué supera al azar):**
+2. **Parámetros abstractos:**
+   - La media de pasos diarios en E se expresa como $1/\sigma$ para $\sigma>0$; $\sigma=0$ impide la progresión E → I y se presenta como «sin progresión», no como una incubación de cero días.
+   - Los valores de recuperación y transición por contacto son controles ilustrativos del autómata, sin calibración clínica o urbana.
+3. **Estrategia Territorial en Cascada (Qué compara):**
    - *Paso 1 (Cortafuegos):* Vacuna prioritariamente a los nodos que sirven de puente entre el sector activo y los sectores sanos.
    - *Paso 2 (Hubs internos):* Inmuniza los nodos con mayor grado de centralidad dentro del sector para evitar la dispersión exponencial interna.
    - *Paso 3 (Anillo perimetral):* Aplica dosis a los contactos directos de personas en periodo infeccioso.
@@ -264,11 +257,11 @@ En cumplimiento con el punto 8 de los requisitos del reto, se detalla el origen 
 > **Prerrequisito:** Requiere tener el entorno virtual de Python activado con las dependencias de prueba (`python -m pip install -e ".[test]"`) y [Node.js](https://nodejs.org/) v18+ instalado.
 
 ```bash
-# 1. Pruebas unitarias y de integración de Python (67 pruebas)
+# 1. Pruebas unitarias y de integración de Python (suite de Python)
 python -m pytest -q
 
-# 2. Pruebas unitarias de interfaz y lógica frontend (16 pruebas)
-node --test tests/frontend.test.cjs
+# 2. Pruebas unitarias de interfaz y lógica frontend (suite de interfaz)
+node --test tests/frontend.test.cjs tests/scenario.test.cjs
 ```
 
 ### Ejecución Local con Restricciones de Recursos
@@ -283,3 +276,28 @@ docker run --rm --cpus=0.25 --memory=512m -p 8000:8000 manta-sim
 
 - **Restricción de CPU en ECS Fargate:** En una instancia mínima de 0.25 vCPU, la ejecución de una simulación individual tarda ~1.7 s. Un lote completo de 30 réplicas Monte Carlo en un solo hilo tarda ~38 s; para reducir este tiempo por debajo de 3 s en producción masiva, se debe escalar a workers distribuidos vía Step Functions Express.
 - **Red Sintética:** Aunque la topología refleja la conectividad urbana de Manta, no incorpora censos nominales en tiempo real del INEC ni historiales clínicos individuales.
+
+
+## Scenario editor and API initialization contract
+
+The editor keeps a draft separate from the accepted configuration. **Aceptar** validates and accepts without running or saving a named preset. **Cancelar** and Escape discard the draft. **Limpiar** restores editor defaults without deleting saved presets. **Guardar escenario** saves the current valid draft under a unique name in this browser only (`weezing.scenarios.v1`, version 1); corrupt, unsupported or unavailable storage is reported without replacing existing data. Three immutable base presets remain available without storage.
+
+The population is derived from integer S/E/I/R counts (7–2000 total). Sector foci reserve part of I; their sum cannot exceed I or each sector's population. The remaining I and all E/R are assigned to distinct nodes using the seed. Reducing N adapts graph/stock limits but never silently rewrites sector foci.
+
+`POST /api/simulate` and `base` in `POST /api/batch` accept these optional additions:
+
+```json
+{
+  "n": 70,
+  "initial_state": {"s": 60, "e": 3, "i": 5, "r": 2},
+  "initial": {"tarqui": 2},
+  "all_s_import": true
+}
+```
+
+- `initial_state` requires all four nonnegative integer counts, summing exactly to `n`. When it is supplied and `initial` is omitted, sector foci default to `{}`. `initial_ids`, when supplied, must contain exactly I unique valid IDs.
+- `all_s_import` defaults to `false` for legacy requests. It only acts when an explicit initial state is entirely S. Day zero stays entirely S; one deterministic common node becomes I at the end of day one, with no same-day secondary transition. All three strategies share this event. No import occurs for an E-only initial state, mixed state, zero-day horizon or legacy zero-focus request.
+- Each daily record includes `imported_cases` (0 or 1). `meta.external_import` is either `null` or `{day: 1, node: <id>, state: "I"}`. The event conserves N and counts once in cumulative infections, separately from `new_s_to_e`.
+- Incubation days are a UI conversion to the existing `sigma` API parameter, not an additional backend rate. `sigma=0` means no E→I progression.
+
+Run computes the accepted scenario; playback never recomputes it. Play/pause, stop-to-day-zero, restart-and-play, speed and seeking remain independent controls. S is blue, E yellow/orange, I red and R green on nodes and counters; recovered volunteer stars stay green. The final report appears only after playback completion and is hidden again by stop/restart/seek. Without map frames, the daily curve counts remain playable without fabricating node states. Single-seed metrics and Monte Carlo means/empirical ranges are labeled separately; this implementation adds no deployment or external-service requirement.

@@ -26,6 +26,13 @@ class VolunteersConfig(RequestModel):
     reinfection: float = Field(default=.04, ge=0, le=1)
 
 
+class InitialCounts(RequestModel):
+    s: int = Field(ge=0, le=2000)
+    e: int = Field(ge=0, le=2000)
+    i: int = Field(ge=0, le=2000)
+    r: int = Field(ge=0, le=2000)
+
+
 class SimulateRequest(RequestModel):
     n: int = Field(default=1000, ge=7, le=2000)
     days: int = Field(default=60, ge=0, le=90)
@@ -36,6 +43,8 @@ class SimulateRequest(RequestModel):
     degree: float = Field(default=8, ge=0, le=50)
     initial: dict[str, int] = Field(default_factory=lambda: {"tarqui": 10})
     initial_ids: list[int] | None = None
+    initial_state: InitialCounts | None = None
+    all_s_import: bool = False
     intervention: InterventionConfig = Field(default_factory=InterventionConfig)
     volunteers: VolunteersConfig = Field(default_factory=VolunteersConfig)
     include_frames: bool = False
@@ -43,6 +52,15 @@ class SimulateRequest(RequestModel):
     @model_validator(mode="after")
     def validate_territory(self):
         from .topology import SECTORS
+        if self.initial_state is not None:
+            if "initial" not in self.model_fields_set:
+                self.initial = {}
+            if sum(self.initial_state.model_dump().values()) != self.n:
+                raise ValueError("S + E + I + R debe ser igual a N")
+            if sum(self.initial.values()) > self.initial_state.i:
+                raise ValueError("Los focos iniciales no pueden superar I")
+            if self.initial_ids is not None and len(self.initial_ids) != self.initial_state.i:
+                raise ValueError("initial_ids debe contener exactamente I IDs")
         if self.degree > self.n - 1:
             raise ValueError("degree no puede superar n - 1")
         if self.intervention.k_max is None:
@@ -59,7 +77,7 @@ class SimulateRequest(RequestModel):
                 raise ValueError("initial_ids fuera de rango")
         elif sum(self.initial.values()) > self.n:
             raise ValueError("Los infectados iniciales superan N")
-        if self.initial_ids is None:
+        if self.initial_ids is None or self.initial_state is not None:
             base, remainder = divmod(self.n, len(SECTORS))
             for index, sector in enumerate(SECTORS):
                 capacity = base + (index < remainder)
@@ -98,6 +116,7 @@ class SimulationConfig:
     delay: int = 0
     p_vol: float = 0.0
     p_reinf: float = 0.0
+    import_node: int | None = None
 
     def __post_init__(self) -> None:
         self.validate()
@@ -108,6 +127,11 @@ class SimulationConfig:
                 raise ValueError(f"{name} debe ser un entero")
         if type(self.delay) is not int or self.delay < 0:
             raise ValueError("delay debe ser un entero no negativo")
+        if self.import_node is not None:
+            if type(self.import_node) is not int or not 0 <= self.import_node < self.n:
+                raise ValueError("import_node fuera de rango")
+            if self.e0 or self.i0 or self.r0:
+                raise ValueError("La importación requiere un estado inicial totalmente S")
         if self.n < 1:
             raise ValueError("n debe ser mayor que 0")
         if self.days < 0:

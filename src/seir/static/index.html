@@ -4,45 +4,69 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Laboratorio de contención - Weezing</title>
-  <link rel="stylesheet" href="/style.css?v=20261028-ux6">
-  <script src="/app.js?v=20261028-ux6" defer></script>
+  <link rel="stylesheet" href="/style.css?v=20261028-scenario1">
+  <script src="/scenario.js?v=20261028-scenario1" defer></script>
+  <script src="/app.js?v=20261028-scenario1" defer></script>
 </head>
 <body>
   <header class="site-header">
-    <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-controls="controls-panel" aria-expanded="true" aria-label="Ocultar parámetros" title="Mostrar u ocultar parámetros">☰</button>
+    <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-controls="controls-summary" aria-expanded="true" aria-label="Ocultar parámetros" title="Mostrar u ocultar parámetros">☰</button>
     <div class="brand"><span class="brand-mark" aria-hidden="true">W<span>·</span></span><div><span class="brand-track">Spookython · Track B</span><h1>Laboratorio de contención - Weezing</h1></div></div>
     <p id="app-status" class="status-pill" data-state="ready" role="status" aria-live="polite">Listo para simular</p>
   </header>
   <main id="layout" class="layout" data-controls-open="true">
+    <section id="controls-summary" class="panel scenario-launcher" aria-label="Escenario aceptado">
+      <h2>Tu escenario</h2>
+      <p id="accepted-summary">1000 personas · 60 días · semilla 42</p>
+      <button type="button" id="open-scenario" class="secondary-button">Personaliza el escenario</button>
+      <button type="button" id="simulate" class="primary-button">Ejecutar simulación</button>
+      <p id="error" role="alert" aria-live="assertive" hidden></p>
+      <p>Configura, acepta y después ejecuta. La comparación conserva las tres estrategias.</p>
+    </section>
+    <dialog id="scenario-dialog" aria-labelledby="controls-heading">
+      <div class="scenario-dialog-layout">
+        <aside class="presets-panel" aria-label="Escenarios predefinidos y guardados">
+          <h2>Escenarios</h2><p>Seleccionar carga un borrador; no lo ejecuta.</p>
+          <div id="preset-list" class="preset-list"></div>
+          <label for="preset-name">Nombre del escenario</label><input id="preset-name" type="text" maxlength="80" autocomplete="off">
+          <button id="save-scenario" type="button" class="secondary-button">Guardar escenario</button>
+          <p id="preset-status" role="status" aria-live="polite"></p>
+        </aside>
     <section id="controls-panel" class="panel controls-panel" aria-labelledby="controls-heading">
       <div class="section-title"><div><h2 id="controls-heading">Diseña el escenario</h2></div></div>
       <form id="controls">
-        <div class="action-row"><button type="submit" id="simulate" class="primary-button">Generar simulación</button><button type="button" id="randomize" class="dice-button" aria-label="Cambiar parámetros al azar" title="Cambiar parámetros; luego selecciona Generar simulación"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.2"/><circle cx="16" cy="8" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="8" cy="16" r="1.2"/><circle cx="16" cy="16" r="1.2"/></svg></button></div>
-        <p id="scenario-note" class="scenario-note" role="status" aria-live="polite">Selecciona una estrategia para cargar sus parámetros; después genera la simulación.</p>
+        <div class="action-row"><button type="button" id="randomize" class="dice-button" aria-label="Cambiar parámetros al azar" title="Cambiar el borrador; luego acepta el escenario"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.2"/><circle cx="16" cy="8" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="8" cy="16" r="1.2"/><circle cx="16" cy="16" r="1.2"/></svg></button></div>
+        <p id="scenario-note" class="scenario-note" role="status" aria-live="polite">Edita el borrador. Aceptar no ejecuta ni guarda un escenario con nombre.</p>
         <button id="toggle-parameters" type="button" class="parameter-toggle" aria-expanded="true" aria-controls="parameter-fields">Ocultar parámetros</button>
         <div id="parameter-fields" class="parameter-fields" data-open="true">
         <fieldset><legend>Red y transmisión</legend>
-          <label for="n">Población <span>personas</span><span class="field-help" tabindex="0" role="img" aria-label="Cantidad de personas representadas en la red." data-tip="Cantidad de personas representadas en la red.">i</span></label><input id="n" type="number" min="7" max="2000" step="1" value="1000">
+          <label for="count-s">Susceptibles S</label><input id="count-s" type="number" min="0" max="2000" step="1" value="993">
+          <label for="count-e">Expuestos E</label><input id="count-e" type="number" min="0" max="2000" step="1" value="0">
+          <label for="count-i">Infecciosos I</label><input id="count-i" type="number" min="0" max="2000" step="1" value="7">
+          <label for="count-r">Recuperados R</label><input id="count-r" type="number" min="0" max="2000" step="1" value="0">
+          <label for="all-s-import">Importar un caso I el día 1 si todos son S</label><input id="all-s-import" type="checkbox" checked="checked">
+          <label for="n">Población <span>S + E + I + R</span><span class="field-help" tabindex="0" role="img" aria-label="Cantidad de personas representadas en la red." data-tip="Cantidad de personas representadas en la red.">i</span></label><input id="n" readonly type="number" min="7" max="2000" step="1" value="1000">
           <label for="days">Horizonte <span>días</span><span class="field-help" tabindex="0" role="img" aria-label="Cuántos días dura la simulación." data-tip="Cuántos días dura la simulación.">i</span></label><input id="days" type="number" min="0" max="90" step="1" value="60">
           <label for="beta">Contagio β <span>por contacto</span><span class="field-help" tabindex="0" role="img" aria-label="Probabilidad de contagio cuando hay contacto entre personas." data-tip="Probabilidad de contagio cuando hay contacto entre personas.">i</span></label><div class="slider"><input id="beta" type="range" min="0" max="1" step="0.001" value="0.03"><output id="beta-value" for="beta">0.03</output></div>
         </fieldset>
         <fieldset><legend>Campaña de contención</legend>
           <label for="mode">Asignación <span class="field-help" tabindex="0" role="img" aria-label="Define cómo se reparten las dosis disponibles." data-tip="Define cómo se reparten las dosis disponibles.">i</span></label><select id="mode"><option value="dynamic">Dinámica</option><option value="static">Cuota fija</option></select>
-          <label for="k_max">Stock total <span>máximo 40 % de N</span><span class="field-help" tabindex="0" role="img" aria-label="Máximo de dosis disponibles durante todo el escenario." data-tip="Máximo de dosis disponibles durante todo el escenario.">i</span></label><input id="k_max" type="number" min="0" max="400" step="1" value="400">
+          <label for="k_max">Stock total<span class="field-note">Máximo 40 % de N</span><span class="field-help" tabindex="0" role="img" aria-label="Máximo de dosis disponibles durante todo el escenario." data-tip="Máximo de dosis disponibles durante todo el escenario.">i</span></label><input id="k_max" type="number" min="0" max="400" step="1" value="400">
           <label for="efficacy">Eficacia η <span class="field-help" tabindex="0" role="img" aria-label="Fracción de personas vacunadas que queda protegida." data-tip="Fracción de personas vacunadas que queda protegida.">i</span></label><div class="slider"><input id="efficacy" type="range" min="0" max="1" step="0.01" value="0.8"><output id="efficacy-value" for="efficacy">0.8</output></div>
           <label for="include_frames">Animar la red <span class="field-help" tabindex="0" role="img" aria-label="Incluye los cambios diarios para reproducir la red." data-tip="Incluye los cambios diarios para reproducir la red.">i</span></label><input id="include_frames" type="checkbox" checked="checked">
         </fieldset>
-        <details class="control-details" open><summary>Focos iniciales <span>7 sectores</span></summary><fieldset><legend class="sr-only">Infecciosos iniciales por sector</legend>
-          <label for="initial-tarqui">Tarqui <span class="field-help" tabindex="0" role="img" aria-label="Personas infecciosas al inicio en Tarqui." data-tip="Personas infecciosas al inicio en Tarqui.">i</span></label><input id="initial-tarqui" type="number" min="0" max="2000" step="1" value="5">
-          <label for="initial-eloy_alfaro">Eloy Alfaro <span class="field-help" tabindex="0" role="img" aria-label="Personas infecciosas al inicio en Eloy Alfaro." data-tip="Personas infecciosas al inicio en Eloy Alfaro.">i</span></label><input id="initial-eloy_alfaro" type="number" min="0" max="2000" step="1" value="0">
-          <label for="initial-los_esteros">Los Esteros <span class="field-help" tabindex="0" role="img" aria-label="Personas infecciosas al inicio en Los Esteros." data-tip="Personas infecciosas al inicio en Los Esteros.">i</span></label><input id="initial-los_esteros" type="number" min="0" max="2000" step="1" value="2">
-          <label for="initial-manta_centro">Manta Centro <span class="field-help" tabindex="0" role="img" aria-label="Personas infecciosas al inicio en Manta Centro." data-tip="Personas infecciosas al inicio en Manta Centro.">i</span></label><input id="initial-manta_centro" type="number" min="0" max="2000" step="1" value="0">
-          <label for="initial-murcielago">Murciélago <span class="field-help" tabindex="0" role="img" aria-label="Personas infecciosas al inicio en Murciélago." data-tip="Personas infecciosas al inicio en Murciélago.">i</span></label><input id="initial-murcielago" type="number" min="0" max="2000" step="1" value="0">
-          <label for="initial-barbasquillo">Barbasquillo <span class="field-help" tabindex="0" role="img" aria-label="Personas infecciosas al inicio en Barbasquillo." data-tip="Personas infecciosas al inicio en Barbasquillo.">i</span></label><input id="initial-barbasquillo" type="number" min="0" max="2000" step="1" value="0">
-          <label for="initial-san_mateo">San Mateo <span class="field-help" tabindex="0" role="img" aria-label="Personas infecciosas al inicio en San Mateo." data-tip="Personas infecciosas al inicio en San Mateo.">i</span></label><input id="initial-san_mateo" type="number" min="0" max="2000" step="1" value="0">
+        <details class="control-details" open><summary>Focos iniciales <span>7 sectores</span></summary><p id="foci-help">Reserva infecciosos I por sector. La suma no puede superar I ni la capacidad de cada sector; el resto de I se distribuye al azar sin duplicados.</p><fieldset><legend class="sr-only">Infecciosos iniciales por sector</legend>
+          <label for="initial-tarqui">Tarqui</label><input id="initial-tarqui" type="number" aria-describedby="foci-help" min="0" max="2000" step="1" value="5">
+          <label for="initial-eloy_alfaro">Eloy Alfaro</label><input id="initial-eloy_alfaro" type="number" aria-describedby="foci-help" min="0" max="2000" step="1" value="0">
+          <label for="initial-los_esteros">Los Esteros</label><input id="initial-los_esteros" type="number" aria-describedby="foci-help" min="0" max="2000" step="1" value="2">
+          <label for="initial-manta_centro">Manta Centro</label><input id="initial-manta_centro" type="number" aria-describedby="foci-help" min="0" max="2000" step="1" value="0">
+          <label for="initial-murcielago">Murciélago</label><input id="initial-murcielago" type="number" aria-describedby="foci-help" min="0" max="2000" step="1" value="0">
+          <label for="initial-barbasquillo">Barbasquillo</label><input id="initial-barbasquillo" type="number" aria-describedby="foci-help" min="0" max="2000" step="1" value="0">
+          <label for="initial-san_mateo">San Mateo</label><input id="initial-san_mateo" type="number" aria-describedby="foci-help" min="0" max="2000" step="1" value="0">
         </fieldset></details>
         <details class="control-details" open><summary>Ajustes del modelo <span>avanzado</span></summary><fieldset><legend class="sr-only">Parámetros del modelo</legend>
-          <label for="sigma">Incubación σ <span class="field-help" tabindex="0" role="img" aria-label="Ritmo al que las personas expuestas pasan a ser infecciosas." data-tip="Ritmo al que las personas expuestas pasan a ser infecciosas.">i</span></label><input id="sigma" type="number" min="0" max="1" step="0.01" value="0.2">
+          <label for="incubation-days">Incubación media <span>días; 0 = sin progresión</span></label><input id="incubation-days" type="number" min="0" step="any" value="5">
+          <label for="sigma">Progresión diaria σ <span class="field-help" tabindex="0" role="img" aria-label="Ritmo al que las personas expuestas pasan a ser infecciosas." data-tip="Ritmo al que las personas expuestas pasan a ser infecciosas.">i</span></label><input id="sigma" type="number" min="0" max="1" step="any" value="0.2">
           <label for="gamma">Recuperación γ <span class="field-help" tabindex="0" role="img" aria-label="Ritmo al que las personas infecciosas se recuperan." data-tip="Ritmo al que las personas infecciosas se recuperan.">i</span></label><input id="gamma" type="number" min="0" max="1" step="0.01" value="0.1">
           <label for="degree">Grado medio <span class="field-help" tabindex="0" role="img" aria-label="Cantidad promedio de conexiones por persona." data-tip="Cantidad promedio de conexiones por persona.">i</span></label><input id="degree" type="number" min="0" max="50" step="1" value="8">
           <label for="quota">Cuota diaria K <span class="field-help" tabindex="0" role="img" aria-label="Límite de dosis que se pueden asignar por día." data-tip="Límite de dosis que se pueden asignar por día.">i</span></label><input id="quota" type="number" min="0" max="2000" step="1" value="30">
@@ -50,8 +74,11 @@
         </fieldset></details>
         </div>
       </form>
-      <p id="error" role="alert" aria-live="assertive" hidden></p>
+      <p id="scenario-error" role="alert" aria-live="assertive" hidden></p>
+      <div class="scenario-actions"><button id="clear-scenario" type="button" class="quiet-button">Limpiar</button><button id="cancel-scenario" type="button" class="secondary-button">Cancelar</button><button id="accept-scenario" type="button" class="primary-button">Aceptar</button></div>
     </section>
+      </div>
+    </dialog>
     <div class="results" id="workspace" aria-busy="false">
       <section id="map-panel" class="panel map-panel" aria-labelledby="map-heading">
         <div class="section-title"><div><h2 id="map-heading">Red territorial</h2><p class="map-caption">Representación ilustrativa de Manta · no está a escala</p></div><span id="playback-status" class="map-badge">Esperando simulación</span></div>
@@ -64,16 +91,28 @@
             <label class="bridge-filter" title="Ocultar conexiones dentro del mismo sector para ver puentes intersectoriales">
               <input type="checkbox" id="filter-bridges"> Solo puentes clave
             </label>
+            <label class="bridge-filter" title="Mostrar u ocultar todas las líneas entre nodos">
+              <input type="checkbox" id="filter-connections" checked> Mostrar conexiones entre nodos
+            </label>
           </div>
           <svg id="map" viewBox="0 15 100 70" role="img" aria-label="Estados de la red territorial por sector"></svg>
           <div class="day-balance" aria-label="Población en el día seleccionado"><span class="node-s"><i aria-hidden="true">●</i> Susceptibles <strong id="map-count-s">—</strong></span><span class="node-e"><i aria-hidden="true">■</i> Expuestos <strong id="map-count-e">—</strong></span><span class="node-i"><i aria-hidden="true">▲</i> Infecciosos <strong id="map-count-i">—</strong></span><span class="node-r"><i aria-hidden="true">⊕</i> Recuperados <strong id="map-count-r">—</strong></span></div>
-          <div id="map-empty" class="map-empty"><span class="empty-orbit" aria-hidden="true">◎</span><strong id="map-empty-title">La ciudad está lista.</strong><span id="map-empty-copy">Genera una simulación para explorar su evolución.</span></div>
+          <div id="map-empty" class="map-empty"><span class="empty-orbit" aria-hidden="true">◎</span></div>
           <div id="map-loading" class="loading-overlay" hidden><span class="spinner" aria-hidden="true"></span><strong>Generando escenario…</strong><span id="loading-detail">Construyendo la red y comparando las tres estrategias.</span></div>
-          <div class="playback" role="region" aria-label="Reproducción de la simulación"><div class="playback-buttons"><button id="play" type="button" class="small-button" disabled aria-label="Reproducir animación">▶</button><button id="pause" type="button" class="quiet-button" disabled aria-label="Pausar animación">Ⅱ</button><button id="restart" type="button" class="quiet-button" disabled aria-label="Reiniciar animación" title="Volver al día cero">↺</button></div><output id="day" for="timeline">Día 0</output><label for="speed" class="sr-only">Velocidad de reproducción</label><select id="speed" aria-label="Velocidad de reproducción"><option value="250">1×</option><option value="125">2×</option><option value="500">0,5×</option></select><label for="timeline" class="sr-only">Día de la animación</label><input id="timeline" type="range" min="0" max="0" value="0" disabled></div>
+          <div class="playback" role="region" aria-label="Reproducción de la simulación"><div class="playback-buttons"><button id="play" type="button" class="small-button" disabled aria-label="Reproducir animación">▶</button><button id="pause" type="button" class="quiet-button" disabled aria-label="Pausar animación">Ⅱ</button><button id="stop" type="button" class="quiet-button" disabled aria-label="Detener y volver al día cero">■</button><button id="restart" type="button" class="quiet-button" disabled aria-label="Reiniciar animación" title="Volver al día cero y reproducir">↺</button></div><output id="day" for="timeline">Día 0</output><label for="speed" class="sr-only">Velocidad de reproducción</label><select id="speed" aria-label="Velocidad de reproducción"><option value="250">1×</option><option value="125">2×</option><option value="500">0,5×</option></select><label for="timeline" class="sr-only">Día de la animación</label><input id="timeline" type="range" min="0" max="0" value="0" disabled></div>
         </div>
+        <ol class="sector-legend" aria-label="Sectores del mapa">
+          <li data-sector="san_mateo" data-number="1">San Mateo</li>
+          <li data-sector="murcielago" data-number="2">Murciélago</li>
+          <li data-sector="manta_centro" data-number="3">Manta Centro</li>
+          <li data-sector="tarqui" data-number="4">Tarqui</li>
+          <li data-sector="los_esteros" data-number="5">Los Esteros</li>
+          <li data-sector="eloy_alfaro" data-number="6">Eloy Alfaro</li>
+          <li data-sector="barbasquillo" data-number="7">Barbasquillo</li>
+        </ol>
         <ul class="legend map-legend sr-only" aria-label="Leyenda de estados"><li class="node-s">Círculo · S</li><li class="node-e">Cuadrado · E</li><li class="node-i">Triángulo · I</li><li class="node-r">Círculo con Cruz · R</li><li class="node-vol">Estrella · Brigadista</li></ul>
       </section>
-      <section id="overview" class="overview" aria-labelledby="metrics-heading"><div class="overview-heading"><div><h2 id="metrics-heading">Resultado de la propuesta</h2><p class="result-explainer">Los indicadores resumen toda la corrida calculada; la reproducción del mapa comienza en el día 0. Compara con y sin campaña sobre las mismas condiciones iniciales. “Sin dosis” mantiene el mismo brote y desactiva la intervención.</p></div><p id="results-context">Balance al finalizar el escenario</p></div>
+      <section id="overview" class="overview" aria-labelledby="metrics-heading"><div class="overview-heading"><div><h2 id="metrics-heading">Resultado de la propuesta</h2><p class="result-explainer">Los indicadores resumen la corrida individual calculada; el informe final aparece al completar la reproducción. Compara con y sin campaña sobre las mismas condiciones iniciales. “Sin dosis” mantiene el mismo brote y desactiva la intervención.</p></div><p id="results-context">Balance al finalizar el escenario</p></div>
         <div class="kpis">
           <article class="kpi featured"><h3>Contagios evitados</h3><p id="avoided" aria-live="polite">—</p></article>
           <article class="kpi"><h3>Reproducción R₀</h3><p id="r0" aria-live="polite">—</p><span id="r0-meaning" class="sr-only" aria-live="polite">Potencial inicial</span></article>
@@ -90,7 +129,7 @@
         <ul class="legend chart-legend"><li class="key-proposed">Propuesta</li><li class="key-random">Al azar</li><li class="key-none">Sin intervención</li></ul><p id="range-status" role="status">Ejecuta 30 réplicas para explorar el rango empírico de simulación (p2.5 - p97.5).</p>
       </section>
       <section class="panel comparison-panel" aria-labelledby="table-heading"><div class="section-title"><div><h2 id="table-heading">El impacto, en números</h2></div><span class="table-tag">Mismas dosis</span></div><div class="table-scroll"><table><caption class="sr-only">Métricas por estrategia</caption><thead><tr><th scope="col">Estrategia</th><th scope="col">Contagios acumulados</th><th scope="col">Pico de I</th><th scope="col">Dosis gastadas</th></tr></thead><tbody id="metrics-table"></tbody></table></div></section>
-      <details id="report" class="report-panel-compact"><summary>Informe para el COE Cantonal <span>Simulación Académica</span></summary><div id="report-body" aria-live="polite">Ejecute la simulación para generar el informe.</div></details>
+      <details id="report" hidden class="report-panel-compact"><summary>Informe para el COE Cantonal <span>Simulación Académica</span></summary><div id="report-body" aria-live="polite">Completa la reproducción para ver el informe.</div><div id="aggregate-report" aria-live="polite"></div></details>
     </div>
   </main>
   <footer class="site-footer">

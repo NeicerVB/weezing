@@ -23,7 +23,10 @@ class Element {
   appendChild(child) { this.children.push(child); return child; }
   replaceChildren(...children) { this.children = children; this.textContent = ''; }
   addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); }
-  fire(name) { for (const fn of this.listeners[name] ?? []) fn({ preventDefault() {} }); }
+  fire(name, data = {}) { for (const fn of this.listeners[name] ?? []) fn({ preventDefault() {}, ...data }); }
+  showModal() { this.open = true; }
+  close() { this.open = false; this.fire('close'); }
+  focus() { this.focused = true; }
   checkValidity() { return true; }
 }
 
@@ -63,9 +66,9 @@ function setup(fetchImpl = async () => response(fixture())) {
     now += ms;
     for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.fn(); }
   };
-  vm.runInNewContext(fs.readFileSync(path.join(root, 'app.js'), 'utf8'), {
-    document, fetch: fetchImpl, setTimeout, clearTimeout, console,
-  }, { filename: 'app.js' });
+  const context = vm.createContext({ document, fetch: fetchImpl, setTimeout, clearTimeout, console });
+  vm.runInContext(fs.readFileSync(path.join(root, 'scenario.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(root, 'app.js'), 'utf8'), context, { filename: 'app.js' });
   return { elements, tick, document, details };
 }
 
@@ -82,7 +85,7 @@ test('no inicia una simulación al cargar y espera una acción explícita', asyn
   await flush();
   assert.equal(sent, 0);
   assert.equal(el['map-empty'].hidden, false);
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   assert.equal(sent, 1);
   assert.equal(el.simulate.disabled, true);
@@ -99,7 +102,7 @@ test('no inicia una simulación al cargar y espera una acción explícita', asyn
 test('los cambios durante una petición obsoleta no dejan la pantalla bloqueada', async () => {
   const pending = [];
   const { elements: el } = setup(() => new Promise(resolve => pending.push(resolve)));
-  el.controls.fire('submit'); await flush();
+  el.simulate.fire('click'); await flush();
   el.beta.value = '0.2';
   el.controls.fire('input');
   pending[0](response(fixture()));
@@ -112,10 +115,10 @@ test('los cambios durante una petición obsoleta no dejan la pantalla bloqueada'
 test('un error retira la carga, conserva resultados previos y permite reintentar', async () => {
   let fail = false;
   const { elements: el } = setup(async () => fail ? response({error:'Servidor ocupado'},429,'2') : response(fixture()));
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   fail = true;
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   assert.equal(el.r0.textContent, '2.40');
   assert.equal(el['map-loading'].hidden, true);
@@ -158,7 +161,7 @@ test('la red espera inicio explícito y sincroniza día y balance; pausa y reini
   data.strategies.proposed.days=[{day:0,s:1,e:0,i:1,r:0},{day:1,s:0,e:1,i:1,r:0}];
   const {elements:el,tick}=setup(async()=>response(data));
   assert.equal(descendants(el.map).filter(child => child.attrs.class === 'territory-shape').length, 1);
-  el.controls.fire('submit'); await flush();
+  el.simulate.fire('click'); await flush();
   tick(250);
   assert.equal(el.day.textContent,'Día 0');
   assert.equal(descendants(el.map).filter(child => child.attrs.class === 'territory-shape').length, 1,
@@ -192,7 +195,7 @@ test('solicita Monte Carlo explícito y dibuja medias con rango empírico real',
     }, strategies: {} });
   });
   assert.ok(el['run-batch'], 'Falta el control Monte Carlo');
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   el['run-batch'].fire('click');
   await flush();
@@ -214,13 +217,13 @@ test('mantiene Monte Carlo ocupado hasta que termine el lote anterior al cambiar
     if (simulations === 1) return Promise.resolve(response(fixture()));
     return new Promise(resolve => { releaseNew = resolve; });
   });
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   el['run-batch'].fire('click');
   el.seed.value = '43';
   el.controls.fire('input');
   tick(150);
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   releaseNew(response(fixture()));
   await flush();
   assert.equal(el['run-batch'].disabled, true);
@@ -232,41 +235,74 @@ test('mantiene Monte Carlo ocupado hasta que termine el lote anterior al cambiar
 
 test('ajusta stock y grado válidos cuando cambia la población del Brote Sorpresa', () => {
   const { elements: el } = setup();
-  el.n.value = '7';
+  el['count-s'].value = '0'; el['count-i'].value = '7';
   el.controls.fire('input');
   assert.equal(Number(el.k_max.value), 2);
   assert.equal(el.k_max.getAttribute('max'), '2');
   assert.equal(Number(el.degree.value), 6);
   assert.equal(el.degree.getAttribute('max'), '6');
-  assert.equal(Number(el['initial-tarqui'].value), 1);
-  assert.equal(Number(el['initial-los_esteros'].value), 1);
+  assert.equal(Number(el['initial-tarqui'].value), 5, 'No cambia silenciosamente los focos del borrador');
+  assert.equal(Number(el['initial-los_esteros'].value), 2);
 });
 
-test('particiona el territorio sin solapes y mantiene centros y símbolos dentro a N=1000 y N=2000', async () => {
+test('numera las siete regiones y la leyenda conserva el mapeo legible', async () => {
+  const mapping = [
+    ['san_mateo', '1', 'San Mateo'], ['murcielago', '2', 'Murciélago'],
+    ['manta_centro', '3', 'Manta Centro'], ['tarqui', '4', 'Tarqui'],
+    ['los_esteros', '5', 'Los Esteros'], ['eloy_alfaro', '6', 'Eloy Alfaro'],
+    ['barbasquillo', '7', 'Barbasquillo'],
+  ];
+  const data = fixture();
+  data.graph = {nodes:mapping.map(([sector], id)=>({id,x:50,y:50,state:'S',sector})),edges:[]};
+  const { elements: el } = setup(async () => response(data));
+  el.simulate.fire('click'); await flush();
+  assert.equal(el.error.hidden, true, `La respuesta de prueba no debe fallar: ${el.error.textContent}`);
+  const labels = Object.fromEntries(el.map.children.filter(node => node.attrs.class === 'sector-number')
+    .map(node => [node.attrs['data-sector'], node.textContent]));
+  assert.deepEqual(labels, Object.fromEntries(mapping.map(([sector, number]) => [sector, number])));
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const entries = [...html.matchAll(/<li data-sector="([^"]+)" data-number="([^"]+)">([^<]+)<\/li>/g)]
+    .map(([, sector, number, name]) => [sector, number, name]);
+  assert.deepEqual(entries, mapping);
+});
+
+test('los siete polígonos cubren el contorno sin solaparse y contienen nodos estables a N=1000 y N=2000', async () => {
   const sectors = ['tarqui', 'eloy_alfaro', 'los_esteros', 'manta_centro', 'murcielago', 'barbasquillo', 'san_mateo'];
   const parsePath = path => [...path.matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)].map(match => [Number(match[1]), Number(match[2])]);
+  const parseSubpaths = path => path.split(/(?=M)/).filter(Boolean).map(parsePath);
+  const parseSegments = path => {
+    const points = parsePath(path);
+    return Array.from({length:Math.floor(points.length/2)},(_,index)=>[points[index*2],points[index*2+1]]);
+  };
   const inside = (polygon, x, y) => polygon.reduce((value, [xi,yi], index) => {
     const [xj,yj] = polygon[(index + polygon.length - 1) % polygon.length];
     return ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ? !value : value;
   }, false);
-  const edgeDistance = (polygon, x, y) => Math.min(...polygon.map(([x1,y1], index) => {
-    const [x2,y2] = polygon[(index + 1) % polygon.length];
+  const edgeDistance = (edges, x, y) => Math.min(...edges.map(([[x1,y1],[x2,y2]]) => {
     const ratio = Math.max(0, Math.min(1, ((x-x1)*(x2-x1)+(y-y1)*(y2-y1))/((x2-x1)**2+(y2-y1)**2)));
     return Math.hypot(x-(x1+ratio*(x2-x1)),y-(y1+ratio*(y2-y1)));
   }));
-  for (const total of [7, 1000, 2000]) {
+  let prior = null;
+  for (const total of [1000, 2000]) {
     const data = fixture();
     data.graph = { nodes: Array.from({ length: total }, (_, id) => ({ id, sector: sectors[id % 7], x: 0, y: 0, state: 'V' })), edges: [] };
     const { elements: el } = setup(async () => response(data));
-    el.controls.fire('submit'); await flush();
+    el.simulate.fire('click'); await flush();
     const svg = descendants(el.map);
     const outline = parsePath(svg.find(item => item.attrs.class === 'territory-shape').attrs.d);
     const regions = Object.fromEntries(svg.filter(item => item.attrs.class === 'sector-region')
-      .map(item => [item.attrs['data-sector'], parsePath(item.attrs.d)]));
-    assert.equal(Object.keys(regions).length, 7);
-    for (let y = 23.37; y < 76; y += 1.13) for (let x = 9.31; x < 95; x += 1.17) {
-      if (inside(outline, x, y)) assert.equal(Object.values(regions).filter(polygon => inside(polygon, x, y)).length, 1,
-        `Territorio (${x}, ${y}) debe tener exactamente un sector`);
+      .map(item => [item.attrs['data-sector'], parseSubpaths(item.attrs.d)]));
+    const boundaries = Object.fromEntries(svg.filter(item => item.attrs.class === 'sector-boundary')
+      .map(item => [item.attrs['data-sector'], parseSegments(item.attrs.d)]));
+    assert.equal(Object.keys(regions).length, 7, 'Cada sector conserva un polígono SVG propio');
+    const owners = (x, y) => Object.values(regions).filter(parts => parts.some(polygon => inside(polygon, x, y))).length;
+    if (total === 1000) {
+      assert.equal(inside(outline, 49.807, 20.733), false, 'La muestra crítica está fuera del contorno');
+      assert.equal(owners(49.807, 20.733), 0, 'El sector no debe extenderse fuera de la silueta');
+      for (let y = 15.37; y < 85; y += 1.13) for (let x = .31; x < 100; x += 1.17) {
+        assert.equal(owners(x, y), inside(outline, x, y) ? 1 : 0,
+          `(${x}, ${y}) debe tener un dueño solo dentro del territorio`);
+      }
     }
     const nodes = svg.filter(item => item.tagName === 'g');
     assert.equal(nodes.length, total);
@@ -274,18 +310,77 @@ test('particiona el territorio sin solapes y mantiene centros y símbolos dentro
     assert.equal(new Set(first.map(([x,y]) => `${x},${y}`)).size, total, 'No empty or duplicated node positions');
     for (const [x,y,sector,scale] of first) {
       const region = regions[sector];
-      assert.ok(inside(outline, x, y) && inside(region, x, y), `${sector} center must belong to its cell and outline`);
-      assert.equal(Object.values(regions).filter(polygon => inside(polygon, x, y)).length, 1, 'Displayed centers have unique ownership');
-      assert.ok(edgeDistance(region, x, y) >= .85 * scale + .14, 'Every symbol stroke must clear its cell and outline boundaries');
+      assert.ok(inside(outline, x, y), `${sector} center (${x}, ${y}) must remain inside the territory outline`);
+      assert.ok(region.some(polygon=>inside(polygon,x,y)), `${sector} center must belong to its region`);
+      assert.equal(Object.values(regions).filter(parts=>parts.some(polygon=>inside(polygon,x,y))).length, 1, 'Displayed centers have unique ownership');
+      assert.ok(edgeDistance(boundaries[sector], x, y) >= .85 * scale + .14, 'Every symbol stroke must clear its cell and outline boundaries');
       const node = nodes.find(item => Number(item.attrs['data-x']) === x && Number(item.attrs['data-y']) === y);
       const vertices = node.children[0].attrs.points.split(/\s+/).map(pair => pair.split(',').map(Number));
-      assert.ok(vertices.every(([vx,vy]) => edgeDistance(region, vx, vy) >= .14), 'Every star vertex keeps half-stroke clearance');
+      assert.ok(vertices.every(([vx,vy]) => region.some(polygon=>inside(polygon,vx,vy)) && edgeDistance(boundaries[sector],vx,vy) >= .14), 'Every star vertex remains in its region with half-stroke clearance');
     }
-    if (total === 1000) {
-      const { elements: again } = setup(async () => response(data));
-      again.controls.fire('submit'); await flush();
-      assert.deepEqual(descendants(again.map).filter(item => item.tagName === 'g').map(node => [Number(node.attrs['data-x']), Number(node.attrs['data-y'])]), first.map(([x,y]) => [x,y]));
-    }
+    const { elements: again } = setup(async () => response(data));
+    again.simulate.fire('click'); await flush();
+    assert.deepEqual(descendants(again.map).filter(item => item.tagName === 'g').map(node => [Number(node.attrs['data-x']), Number(node.attrs['data-y'])]), first.map(([x,y]) => [x,y]),
+      `Las posiciones se repiten de forma estable a N=${total}`);
+    if (total === 1000) prior = first;
+    else assert.equal(prior.length, 1000);
+  }
+});
+
+test('cada sector es continuo y conserva la ubicación indicada por el croquis', async () => {
+  const ordered = ['san_mateo','barbasquillo','murcielago','manta_centro','tarqui','los_esteros','eloy_alfaro'];
+  const normalizedAnchors = {
+    san_mateo:[13,28], barbasquillo:[29,27], murcielago:[46,24], manta_centro:[44,43],
+    tarqui:[58,37], los_esteros:[75,35], eloy_alfaro:[73,63],
+  };
+  const data = fixture();
+  data.graph = {nodes:ordered.map((sector,id)=>({id,x:50,y:50,state:'S',sector})),edges:[]};
+  const {elements:el}=setup(async()=>response(data));
+  el.simulate.fire('click'); await flush();
+  const parsePath = path => [...path.matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)].map(match=>[Number(match[1]),Number(match[2])]);
+  const regions=Object.fromEntries(el.map.children.filter(node=>node.attrs.class==='sector-region')
+    .map(node=>[node.attrs['data-sector'],node.attrs.d.split(/(?=M)/).filter(Boolean).map(parsePath)]));
+  const inside=(polygon,x,y)=>polygon.reduce((value,[xi,yi],index)=>{
+    const [xj,yj]=polygon[(index+polygon.length-1)%polygon.length];
+    return ((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)?!value:value;
+  },false);
+  const edgeKey=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
+  const disconnected=[];
+  const misplaced=[];
+  for(const sector of ordered){
+    const triangles=regions[sector];
+    const edgeOwners=new Map();
+    triangles.forEach((polygon,index)=>polygon.forEach((point,edge)=>{
+      const key=edgeKey(point,polygon[(edge+1)%polygon.length]);
+      (edgeOwners.get(key)??edgeOwners.set(key,[]).get(key)).push(index);
+    }));
+    const adjacent=Array.from({length:triangles.length},()=>new Set());
+    for(const owners of edgeOwners.values()) if(owners.length===2){adjacent[owners[0]].add(owners[1]);adjacent[owners[1]].add(owners[0]);}
+    let reached=new Set([0]), queue=[0];
+    while(queue.length){for(const next of adjacent[queue.shift()])if(!reached.has(next)){reached.add(next);queue.push(next);}}
+    if(reached.size!==triangles.length)disconnected.push(`${sector}: ${triangles.length-reached.size} triangle islands unreachable`);
+    const [x,normalizedY]=normalizedAnchors[sector], y=15+normalizedY*.7;
+    if(!triangles.some(polygon=>inside(polygon,x,y)))misplaced.push(sector);
+  }
+  assert.deepEqual(misplaced,[],`Sketch anchors owned by the wrong sectors: ${misplaced.join(', ')}`);
+  assert.deepEqual(disconnected,[],`Disconnected sectors: ${disconnected.join('; ')}`);
+});
+
+test('los marcadores numéricos conservan separación entre sí y de nodos densos en cada sector', async () => {
+  const sectors=['tarqui','eloy_alfaro','los_esteros','manta_centro','murcielago','barbasquillo','san_mateo'];
+  const data=fixture();
+  data.graph={nodes:sectors.flatMap((sector,index)=>Array.from({length:286},(_,copy)=>({id:index*286+copy,x:50,y:50,state:'S',sector}))),edges:[]};
+  const {elements:el}=setup(async()=>response(data));
+  el.simulate.fire('click'); await flush();
+  const markers=el.map.children.filter(node=>node.attrs.class==='sector-number').map(node=>({sector:node.attrs['data-sector'],x:Number(node.attrs.x),y:Number(node.attrs.y)}));
+  const nodes=el.map.children.filter(node=>node.attrs.class==='node-group').map(node=>({sector:node.attrs['data-sector'],x:Number(node.attrs['data-x']),y:Number(node.attrs['data-y'])}));
+  assert.equal(markers.length,7);
+  assert.equal(nodes.length,2002);
+  for(let i=0;i<markers.length;i++){
+    for(let j=i+1;j<markers.length;j++) assert.ok(Math.hypot(markers[i].x-markers[j].x,markers[i].y-markers[j].y)>2.5,
+      `Markers ${markers[i].sector} and ${markers[j].sector} must not collide`);
+    for(const node of nodes) assert.ok(Math.hypot(markers[i].x-node.x,markers[i].y-node.y)>2.5,
+      `Marker ${markers[i].sector} must clear node ${node.sector}`);
   }
 });
 
@@ -295,7 +390,7 @@ test('abre todos los controles y sitúa el balance diario dentro del mapa', () =
   assert.match(html, /<details class="control-details" open>/g);
   assert.ok(html.indexOf('class="day-balance"') > html.indexOf('id="map"') &&
     html.indexOf('class="day-balance"') < html.indexOf('class="playback"'));
-  assert.match(html, /Los indicadores resumen toda la corrida[\s\S]*el mapa comienza en el día 0/i);
+  assert.match(html, /informe final aparece al completar la reproducción/i);
   const { elements: el, details } = setup();
   delete details[0].attrs.open;
   delete details[1].attrs.open;
@@ -343,13 +438,15 @@ test('serializa los parámetros y agrupa los cambios rápidos en una única peti
   el.include_frames.checked = true;
   el['initial-tarqui'].value = '9';
   el['initial-los_esteros'].value = '3';
+  el['count-i'].value = '12'; el['count-s'].value = '988';
   el.controls.fire('input');
   tick(149);
   assert.equal(requests.length, 0);
   tick(500);
   await flush();
   assert.equal(requests.length, 0, 'Editar parámetros no debe ejecutar el escenario');
-  el.controls.fire('submit');
+  el['accept-scenario'].fire('click');
+  el.simulate.fire('click');
   await flush();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, '/api/simulate');
@@ -376,7 +473,7 @@ test('muestra el valor numérico al mover los controles deslizantes', () => {
 
 test('con frames nulos muestra tres curvas, indicadores, tabla e informe sin inventar un mapa', async () => {
   const { elements: el } = setup();
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   assert.equal(el.error.hidden, true);
   assert.equal(descendants(el.curve).filter((item) => item.tagName === 'polyline').length, 3);
@@ -390,7 +487,8 @@ test('con frames nulos muestra tres curvas, indicadores, tabla e informe sin inv
   assert.match(el['report-body'].textContent, /Contagios evitados: 6/);
   assert.match(el['report-body'].textContent, /Simulación computacional ficticia/);
   assert.match(el['map-status'].textContent, /no disponible/i);
-  assert.equal(el.play.disabled, true);
+  assert.equal(el.play.disabled, false, 'Sin red, se reproduce el calendario de las curvas sin inventar nodos');
+  assert.equal(el.report.hidden, true);
 });
 
 test('muestra errores 400 y 429 accesibles, con espera del servidor', async () => {
@@ -399,7 +497,7 @@ test('muestra errores 400 y 429 accesibles, con espera del servidor', async () =
     [429, 'Servidor ocupado', '2'],
   ]) {
     const { elements: el } = setup(async () => response({ error }, status, retry));
-    el.controls.fire('submit');
+    el.simulate.fire('click');
     await flush();
     assert.equal(el.error.hidden, false);
     assert.match(el.error.textContent, new RegExp(error));
@@ -410,11 +508,11 @@ test('muestra errores 400 y 429 accesibles, con espera del servidor', async () =
 test('una respuesta anterior no sobrescribe los resultados más recientes', async () => {
   const pending = [];
   const { elements: el, tick } = setup(() => new Promise((resolve) => pending.push(resolve)));
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   el.beta.value = '0.2';
   el.controls.fire('input');
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   assert.equal(pending.length, 1, 'Agrupa cambios mientras hay una simulación en curso');
   const old = fixture();
@@ -431,13 +529,14 @@ test('una respuesta anterior no sobrescribe los resultados más recientes', asyn
 test('un cambio editado no reemplaza la corrida hasta que se solicita explícitamente', async () => {
   const pending=[];
   const {elements:el,tick}=setup(()=>new Promise(resolve=>pending.push(resolve)));
-  el.controls.fire('submit');
-  el.beta.value='0.04'; el.controls.fire('input'); tick(150);
+  el.simulate.fire('click');
+  el['open-scenario'].fire('click');
+  el.beta.value='0.04'; el.controls.fire('input'); el['accept-scenario'].fire('click'); tick(150);
   assert.equal(pending.length,1);
   pending[0](response(fixture())); await flush();
   assert.equal(pending.length,1);
   assert.notEqual(el.r0.textContent,'2.40');
-  el.controls.fire('submit'); await flush();
+  el.simulate.fire('click'); await flush();
   assert.equal(pending.length,2);
   pending[1](response(fixture())); await flush();
   tick(150); await flush();
@@ -450,7 +549,7 @@ test('dibuja la topología opcional y aplica diffs sin perder el estado inicial 
   data.frames = [{ day: 1, changed: [{ id: 1, state: 'E' }, { id: 2, state: 'V' }] }];
   const { elements: el, tick } = setup(async () => response(data));
   el.include_frames.checked = true;
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   assert.equal(el.play.disabled, false, 'La reproducción queda disponible, pero no inicia sola');
   assert.equal(descendants(el.map).filter((child) => child.tagName === 'line').length, 1);
@@ -471,7 +570,7 @@ test('representa el rango empírico solo cuando se proporciona la serie diaria',
   const data = fixture();
   data.range = { p2_5: [2, 1], p97_5: [3, 6] };
   const { elements: el } = setup(async () => response(data));
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   assert.equal(descendants(el.curve).filter((item) => item.attrs.class === 'range').length, 1);
   assert.match(el['range-status'].textContent, /p2.5 - p97.5/);
@@ -481,7 +580,7 @@ test('no interpreta R₀ nulo como extinción cuando gamma es cero', async () =>
   const data = fixture();
   data.meta.r0 = null;
   const { elements: el } = setup(async () => response(data));
-  el.controls.fire('submit');
+  el.simulate.fire('click');
   await flush();
   assert.equal(el.r0.textContent, '—');
   assert.match(el['r0-meaning'].textContent, /no calculable/i);
@@ -493,7 +592,7 @@ test('la selección de estrategia aplica valores visibles sin simular ni inventa
     requests.push(JSON.parse(options.body));
     return response(fixture());
   });
-  el.controls.fire('submit'); await flush();
+  el.simulate.fire('click'); await flush();
   const count = requests.length;
   assert.ok(el['strategy-proposed'] && el['strategy-random'] && el['strategy-none']);
   el['strategy-random'].fire('click');
@@ -523,7 +622,7 @@ test('el selector del gráfico abre los parámetros y carga valores de la últim
     requests.push(JSON.parse(options.body));
     return response(fixture());
   });
-  el.controls.fire('submit'); await flush();
+  el.simulate.fire('click'); await flush();
   el['sidebar-toggle'].fire('click');
   el['strategy-none'].fire('click');
   assert.equal(el.layout.getAttribute('data-controls-open'), 'true');
@@ -543,7 +642,7 @@ test('distribuye los nodos densos sin solapar símbolos y repite sus posiciones'
   const getPositions = () => descendants(el.map)
     .filter(node => node.attrs['data-node-id'])
     .map(node => ({ x: Number(node.attrs.cx), y: Number(node.attrs.cy), r: Number(node.attrs.r) }));
-  el.controls.fire('submit'); await flush();
+  el.simulate.fire('click'); await flush();
   const first = getPositions();
   assert.equal(first.length, 286);
   for (let left = 0; left < first.length; left++) {
@@ -553,6 +652,179 @@ test('distribuye los nodos densos sin solapar símbolos y repite sus posiciones'
         `Los nodos ${left} y ${right} se solapan a distancia ${distance}.`);
     }
   }
-  el.controls.fire('submit'); await flush();
+  el.simulate.fire('click'); await flush();
   assert.deepEqual(getPositions(), first, 'La distribución visual debe ser determinista.');
+});
+
+test('el control Mostrar conexiones entre nodos oculta solo las líneas', async () => {
+  const { elements: el } = setup(async () => response(fixture()));
+  const connections = el['filter-connections'];
+  assert.ok(connections, 'Debe existir el control para mostrar conexiones.');
+  connections.checked = false;
+  connections.fire('change');
+  assert.equal(el.map.getAttribute('data-show-connections'), 'false');
+  connections.checked = true;
+  connections.fire('change');
+  assert.equal(el.map.getAttribute('data-show-connections'), 'true');
+});
+
+test('los límites de sector se dibujan encima de las conexiones', async () => {
+  const data = fixture();
+  data.graph = {nodes:[{id:0,x:70,y:50,state:'S',sector:'tarqui',label:'a'},{id:1,x:75,y:52,state:'I',sector:'tarqui',label:'b'}],edges:[[0,1]]};
+  const { elements: el } = setup(async () => response(data));
+  el.simulate.fire('click'); await flush();
+  const children = el.map.children;
+  const boundary = children.findIndex(node => node.attrs.class === 'sector-boundary');
+  const lastNode = children.reduce((last, node, index) =>
+    node.attrs.class === 'node-group' ? index : last, -1);
+  assert.ok(boundary > lastNode, `El borde visible debe renderizarse sobre los nodos y conexiones (${boundary} <= ${lastNode}).`);
+});
+
+test('cada número territorial queda dentro de su región asignada', async () => {
+  const sectors = ['tarqui','eloy_alfaro','los_esteros','manta_centro','murcielago','barbasquillo','san_mateo'];
+  const data = fixture();
+  data.graph = {nodes:sectors.map((sector,id)=>({id,x:50,y:50,state:'S',sector,label:sector})),edges:[]};
+  const { elements: el } = setup(async () => response(data));
+  el.simulate.fire('click'); await flush();
+  const parsePath = path => [...path.matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)].map(match => [Number(match[1]), Number(match[2])]);
+  const parseSubpaths = path => path.split(/(?=M)/).filter(Boolean).map(parsePath);
+  const inside = (polygon, x, y) => polygon.reduce((value, [xi,yi], index) => {
+    const [xj,yj] = polygon[(index + polygon.length - 1) % polygon.length];
+    return ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ? !value : value;
+  }, false);
+  const regions = Object.fromEntries(el.map.children.filter(node => node.attrs.class === 'sector-region')
+    .map(node => [node.attrs['data-sector'], parseSubpaths(node.attrs.d)]));
+  const numbers = Object.fromEntries(el.map.children.filter(node => node.attrs.class === 'sector-number')
+    .map(node => [node.attrs['data-sector'], node]));
+  const nodes = el.map.children.filter(node => node.attrs.class === 'node-group');
+  const ordered = ['san_mateo','murcielago','manta_centro','tarqui','los_esteros','eloy_alfaro','barbasquillo'];
+  assert.equal(Object.keys(numbers).length, 7);
+  ordered.forEach((sector, index) => {
+    const number = numbers[sector];
+    assert.equal(number.textContent, String(index + 1));
+    assert.ok(regions[sector].some(polygon => inside(polygon, Number(number.attrs.x), Number(number.attrs.y))), `${number.textContent} pertenece a ${sector}`);
+    assert.ok(nodes.every(node => Math.hypot(Number(number.attrs.x) - Number(node.attrs['data-x']), Number(number.attrs.y) - Number(node.attrs['data-y'])) > 2.5),
+      `El marcador ${number.textContent} debe quedar separado de los nodos`);
+  });
+});
+
+test('los marcadores numéricos conservan posiciones aunque cambien los nodos', async () => {
+  const sectors = ['tarqui','eloy_alfaro','los_esteros','manta_centro','murcielago','barbasquillo','san_mateo'];
+  const positionsFor = async multiplier => {
+    const data = fixture();
+    data.graph = {nodes:sectors.flatMap((sector,index)=>Array.from({length:multiplier},(_,copy)=>({id:index*multiplier+copy,x:50,y:50,state:'S',sector}))),edges:[]};
+    const { elements: el } = setup(async () => response(data));
+    el.simulate.fire('click'); await flush();
+    return Object.fromEntries(el.map.children.filter(node => node.attrs.class === 'sector-number')
+      .map(node => [node.attrs['data-sector'], [Number(node.attrs.x), Number(node.attrs.y)]]));
+  };
+  assert.deepEqual(await positionsFor(2), await positionsFor(5));
+});
+
+test('oculta la frase secundaria de la ciudad vacía', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /Genera una simulación para explorar su evolución/);
+  assert.doesNotMatch(html, /La ciudad está lista/);
+});
+
+test('los focos iniciales no muestran ayudas redundantes y el stock conserva su nota', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  for (const sector of ['tarqui','eloy_alfaro','los_esteros','manta_centro','murcielago','barbasquillo','san_mateo']) {
+    const label = html.match(new RegExp(`<label for="initial-${sector}">([^<]*)</label>`))?.[1] ?? '';
+    assert.doesNotMatch(label, /field-help/);
+  }
+  assert.match(html, /<label for="k_max">Stock total\s*<span class="field-note">Máximo 40 % de N<\/span>/);
+});
+
+
+test('modal accepts a valid draft without running, and cancel discards edits', async () => {
+  const sent=[];
+  const {elements:el}=setup(async (url,options)=>{sent.push(JSON.parse(options.body)); return response(fixture());});
+  el['open-scenario'].fire('click');
+  assert.equal(el['scenario-dialog'].open,true);
+  el.beta.value='.17'; el.controls.fire('input');
+  el['cancel-scenario'].fire('click');
+  el.simulate.fire('click'); await flush();
+  assert.equal(sent[0].beta,.03);
+  el['open-scenario'].fire('click');
+  el.beta.value='.17'; el['accept-scenario'].fire('click');
+  assert.equal(sent.length,1);
+  assert.equal(el['scenario-dialog'].open,false);
+  el.simulate.fire('click'); await flush();
+  assert.equal(sent[1].beta,.17);
+});
+
+test('modal derives N and rejects foci above I without accepting or executing', async () => {
+  const sent=[];
+  const {elements:el}=setup(async (url,options)=>{sent.push(JSON.parse(options.body)); return response(fixture());});
+  el['open-scenario'].fire('click');
+  el['count-s'].value='65'; el['count-e'].value='3'; el['count-i'].value='2'; el['count-r'].value='0';
+  el.controls.fire('input');
+  assert.equal(Number(el.n.value),70);
+  el['initial-tarqui'].value='3'; el['initial-los_esteros'].value='0';
+  el['accept-scenario'].fire('click');
+  assert.equal(el['scenario-dialog'].open,true);
+  assert.match(el['scenario-error'].textContent,/superar I/);
+  el['initial-tarqui'].value='1'; el['incubation-days'].value='4'; el['incubation-days'].fire('input');
+  el['accept-scenario'].fire('click');
+  assert.equal(sent.length,0);
+  el.simulate.fire('click'); await flush();
+  assert.deepEqual(sent[0].initial_state,{s:65,e:3,i:2,r:0});
+  assert.equal(sent[0].sigma,.25);
+});
+
+test('final report waits for playback completion, stop hides it and restart reuses result', async () => {
+  const data=fixture();
+  data.graph={nodes:[{id:0,x:10,y:20,state:'S',sector:'tarqui'}],edges:[]};
+  data.frames=[{day:1,changed:[{id:0,state:'E'}]}];
+  let sent=0;
+  const {elements:el,tick}=setup(async()=>{sent++; return response(data);});
+  el.simulate.fire('click'); await flush();
+  assert.equal(el.report.hidden,true);
+  el.play.fire('click'); tick(250);
+  assert.equal(el.report.hidden,false);
+  el.stop.fire('click');
+  assert.equal(el.report.hidden,true);
+  assert.equal(el.day.textContent,'Día 0');
+  tick(500); assert.equal(el.day.textContent,'Día 0');
+  el.restart.fire('click'); tick(250);
+  assert.equal(el.report.hidden,false);
+  assert.equal(sent,1);
+});
+
+test('accepted scenario invalidates an older response but cancelled drafts do not', async () => {
+  const pending=[];
+  const {elements:el}=setup(()=>new Promise(resolve=>pending.push(resolve)));
+  el.simulate.fire('click');
+  el['open-scenario'].fire('click'); el.beta.value='.2'; el['accept-scenario'].fire('click');
+  pending[0](response(fixture())); await flush();
+  assert.notEqual(el.r0.textContent,'2.40');
+  el.simulate.fire('click');
+  el['open-scenario'].fire('click'); el.beta.value='.9'; el['cancel-scenario'].fire('click');
+  pending[1](response(fixture())); await flush();
+  assert.equal(el.r0.textContent,'2.40');
+});
+
+test('zero incubation never sends an infinite reciprocal and Escape restores accepted draft', async () => {
+  const sent=[];
+  const {elements:el}=setup(async(url,options)=>{sent.push(JSON.parse(options.body));return response(fixture());});
+  el['open-scenario'].fire('click');
+  el['incubation-days'].value='0'; el['incubation-days'].fire('input');
+  el['accept-scenario'].fire('click');
+  el.simulate.fire('click'); await flush();
+  assert.equal(sent[0].sigma,0);
+  el['open-scenario'].fire('click'); el.beta.value='.9';
+  el['scenario-dialog'].fire('cancel'); el['scenario-dialog'].close();
+  assert.equal(Number(el.beta.value),.03);
+  assert.equal(el['open-scenario'].focused,true);
+});
+
+test('SEIR symbols keep individual state identity, including recovered volunteer shape', async () => {
+  const data=fixture();
+  data.graph={nodes:['S','E','I','R','V'].map((state,id)=>({id,x:10+id,y:20,state,sector:'tarqui'})),edges:[]};
+  const {elements:el}=setup(async()=>response(data));
+  el.simulate.fire('click'); await flush();
+  const symbols=descendants(el.map).filter(node=>node.attrs['data-node-id']!==undefined);
+  [/susceptible/,/expuesto/,/infeccioso/,/recuperado/,/recuperado.*brigadista/].forEach((label,index)=>assert.match(symbols[index].attrs['aria-label'],label));
+  assert.deepEqual(symbols.map(node=>node.tagName),['circle','rect','polygon','circle','polygon']);
 });

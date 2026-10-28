@@ -59,3 +59,24 @@ class ConfigTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_full_initial_state_validates_totals_and_sector_foci():
+    import pytest
+    from seir.config import SimulateRequest
+    valid = {"n": 14, "initial_state": {"s": 8, "e": 2, "i": 3, "r": 1}, "initial": {"tarqui": 2}}
+    assert SimulateRequest.model_validate(valid).initial_state.i == 3
+    for change in ({"s": 9, "e": 2, "i": 3, "r": 1}, {"s": 11, "e": 0, "i": 2, "r": 1}):
+        with pytest.raises(ValueError):
+            SimulateRequest.model_validate(valid | {"initial_state": change, "initial": {"tarqui": 2, "los_esteros": 1}})
+    with pytest.raises(ValueError):
+        SimulateRequest.model_validate(valid | {"initial": {"tarqui": 3}})
+    assert SimulateRequest.model_validate({"n": 14, "initial_state": {"s": 14, "e": 0, "i": 0, "r": 0}}).initial == {}
+
+
+def test_explicit_initial_ids_do_not_bypass_sector_capacity():
+    import pytest
+    from seir.config import SimulateRequest
+    with pytest.raises(ValueError):
+        SimulateRequest.model_validate({"n":14, "initial_state":{"s":11,"e":0,"i":3,"r":0},
+                                        "initial":{"tarqui":3}, "initial_ids":[0,1,2]})

@@ -140,10 +140,11 @@ def run_paired_simulation(
     p_vol: float,
     p_reinf: float,
     include_frames: bool = False,
+    initial_state: InitialState | None = None,
 ) -> dict[str, Any]:
     """Ejecuta sincrónicamente las tres estrategias emparejadas con paridad estricta de dosis administradas."""
     n = t_graph.graph.n
-    initial_state = InitialState(
+    initial_state = initial_state or InitialState(
         e=frozenset(),
         i=initial_infections,
         r=frozenset(),
@@ -157,8 +158,9 @@ def run_paired_simulation(
         gamma=config.gamma,
         days=config.days,
         seed=config.seed,
-        i0=len(initial_infections),
-        init_i=initial_infections,
+        e0=len(initial_state.e), i0=len(initial_state.i), r0=len(initial_state.r),
+        init_e=initial_state.e, init_i=initial_state.i, init_r=initial_state.r,
+        import_node=config.import_node,
         efficacy=efficacy,
         delay=delay,
         p_vol=p_vol,
@@ -284,6 +286,8 @@ def run_paired_simulation(
             "average_degree": round(t_graph.graph.average_degree(), 4),
             "sectors": list(SECTORS),
             "r0": r0_val,
+            "external_import": {"day": 1, "node": config.import_node, "state": "I"}
+                if config.import_node is not None and config.days >= 1 else None,
             "effective": {
                 "beta": config.beta,
                 "sigma": config.sigma,

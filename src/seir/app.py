@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.middleware.gzip import GZipMiddleware
 
-from .config import BatchRequest, SimulateRequest, SimulationConfig
+from .config import BatchRequest, SimulateRequest, SimulationConfig, resolve_initial_sets
 from .strategies import run_paired_simulation
 from .topology import generate_manta_graph, resolve_initial_infections
 
@@ -26,13 +26,25 @@ def simulate_request(payload: dict) -> dict:
     initial = resolve_initial_infections(
         graph, request.initial, request.initial_ids, random.Random(f"{request.seed}:initial")
     )
+    counts = request.initial_state
+    if counts is not None and request.initial_ids is None:
+        pool = [node for node in range(request.n) if node not in initial]
+        remainder = random.Random(f"{request.seed}:initial-remainder").sample(pool, counts.i - len(initial))
+        initial = initial | frozenset(remainder)
+    import_node = None
+    if counts is not None and counts.s == request.n and request.all_s_import:
+        import_node = random.Random(f"{request.seed}:external-import").randrange(request.n)
     config = SimulationConfig(n=request.n, days=request.days, seed=request.seed,
-                              beta=request.beta, sigma=request.sigma, gamma=request.gamma)
+                              beta=request.beta, sigma=request.sigma, gamma=request.gamma,
+                              e0=counts.e if counts else 0, i0=len(initial), r0=counts.r if counts else 0,
+                              init_i=initial, import_node=import_node)
+    initial_state = resolve_initial_sets(config, random.Random(f"{request.seed}:initial-state"))
     intervention = request.intervention
     result = run_paired_simulation(
         graph, config, initial, intervention.mode, intervention.quota,
         intervention.k_max, intervention.efficacy, intervention.delay,
         request.volunteers.enlist, request.volunteers.reinfection, request.include_frames,
+        initial_state=initial_state,
     )
     # El motor usa infinito para R0 con gamma=0; JSON admite null, no Infinity.
     if not math.isfinite(result["meta"]["r0"]):
@@ -49,7 +61,7 @@ def simulate_request(payload: dict) -> dict:
                 change["state"] = {"V_brigade": "V", "V": "S"}.get(change["state"], change["state"])
         result["graph"] = {
             "nodes": [{"id": i, "x": xy[0], "y": xy[1],
-                       "state": "I" if i in initial else "S",
+                       "state": "E" if i in initial_state.e else "I" if i in initial_state.i else "R" if i in initial_state.r else "S",
                        "sector": graph.sectors[i], "label": graph.labels[i]}
                       for i, xy in enumerate(graph.coords)],
             "edges": list(graph.graph.unique_edges()),

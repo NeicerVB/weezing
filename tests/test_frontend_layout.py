@@ -81,7 +81,7 @@ class FrontendLayoutTests(unittest.TestCase):
         content = PAGE.read_text(encoding="utf-8")
         self.assertLess(content.index('id="map-panel"'), content.index('id="overview"'))
         self.assertIn('id="sidebar-toggle"', content)
-        self.assertIn('aria-controls="controls-panel"', content)
+        self.assertIn('aria-controls="controls-summary"', content)
         for strategy in ("proposed", "random", "none"):
             self.assertIn(f'id="strategy-{strategy}"', content)
         chart = content[content.index('class="panel chart-panel"'):content.index('class="panel comparison-panel"')]
@@ -93,9 +93,17 @@ class FrontendLayoutTests(unittest.TestCase):
     def test_each_parameter_exposes_a_keyboard_accessible_explanation(self):
         content = PAGE.read_text(encoding="utf-8")
         for parameter in ("n", "days", "beta", "mode", "k_max", "efficacy", "include_frames",
-                          "sigma", "gamma", "degree", "quota", "seed", *(f"initial-{sector}" for sector in SECTORS)):
+                          "sigma", "gamma", "degree", "quota", "seed"):
             with self.subTest(parameter=parameter):
                 self.assertRegex(content, rf'for="{parameter}"[^\n]*class="field-help"[^>]*tabindex="0"')
+
+    def test_scenario_dialog_and_shared_foci_guidance(self):
+        self.assertEqual(self.by_id["scenario-dialog"][0], "dialog")
+        self.assertEqual(self.by_id["scenario-dialog"][1]["aria-labelledby"], "controls-heading")
+        for sector in SECTORS:
+            self.assertEqual(self.by_id[f"initial-{sector}"][1]["aria-describedby"], "foci-help")
+        self.assertIn("readonly", self.by_id["n"][1])
+        self.assertIn("hidden", self.by_id["report"][1])
 
 
 if __name__ == "__main__":

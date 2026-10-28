@@ -17,6 +17,8 @@ let lastPayload = null;
 let lastSimulationId = -1;
 let batchBusy = false;
 let lastPopulation = value("n");
+let acceptedScenario = Scenario.defaults();
+let lastAggregate = null;
 let simulationBusy = false;
 let activeSimulationId = -1;
 let queuedSimulation = null;
@@ -26,15 +28,20 @@ const modifiedPoints = new Set();
 function invalidateEditedScenario() {
   clearTimeout(debounce);
   requestId += 1;
+  queuedSimulation = null;
   field("run-batch").disabled = true;
   appStatus(lastSimulation ? "Parámetros modificados · genera para actualizar" : "Configura el escenario y genera la simulación");
 }
 
 const MAP_DEFAULT_VB = { x: 0, y: 15, w: 100, h: 70 };
-const TERRITORY_POLYGON = [[8,47],[18,37],[68,19],[91,35],[96,43],[94,51],[90,58],[82,65],[73,70],[53,74],[33,76],[23,70],[15,65],[10,56]];
-const SECTOR_CENTERS = {
-  tarqui:[78,54], eloy_alfaro:[53,63], los_esteros:[74,38], manta_centro:[55,43],
-  murcielago:[37,42], barbasquillo:[33,60], san_mateo:[18,51],
+const TERRITORY_POLYGON = [[49,15],[50.8,17.3],[50.4,20.1],[48.3,22.2],[46.9,24.1],[46.2,27.1],[45.4,28.1],[46.3,29],[47.7,28.8],[48.8,29.7],[49,31.3],[51.2,32.5],[56.2,32.7],[59.6,32.5],[63.7,31.3],[67.9,31.1],[73.5,31.1],[73.7,34.6],[75.2,37],[77.1,39.1],[79.8,39.7],[82.9,39],[85.4,37.2],[88.5,36.2],[92.1,34.4],[94,32.9],[96.2,33.9],[96.5,36.9],[96.5,39.1],[97.7,42.5],[99.8,45.6],[97.7,47.4],[95.4,49.3],[95,51.6],[95.4,54.2],[95.2,55.9],[93.7,57.4],[90.6,57.7],[88.7,58.4],[87.3,60.5],[86.5,63.1],[84.2,65],[82.1,68.4],[80.4,70.5],[82.1,72.8],[81.9,75.4],[81.5,77.8],[81.7,80.1],[80.6,82.5],[79,84.1],[75.8,83.3],[72.9,81],[71.2,79.2],[68.8,78.7],[66.5,78.3],[65,78.7],[63.3,78],[62.3,76.6],[60,75.2],[58.5,73.6],[56.7,71.9],[55.6,69.6],[54.6,68.2],[55.2,65.9],[55,63.8],[53.7,62.3],[51.2,61],[49.6,59.6],[48.3,57.4],[47.5,55.4],[45.2,54.9],[42.9,54.2],[40.4,53.3],[38.3,52.5],[36.3,51.1],[35.8,49.3],[36,46.5],[35.4,44.8],[34,43.9],[31,43.7],[28.1,43.5],[25,43.4],[22.1,42.3],[19.2,41.8],[16.5,41.6],[13.7,40.9],[11.2,40.9],[9,40.5],[7.1,40.4],[4.8,40.4],[2.7,39.8],[1.3,38.5],[0.8,36.5],[1,35],[2.9,33.7],[5,32.3],[7.7,30.4],[10.2,29],[12.7,26.6],[16,26.9],[18.8,27.8],[21.7,28.1],[25,27.9],[29.4,27.6],[33.3,26.7],[36.7,25.5],[40.2,24.1],[42.7,22.4],[45.6,20.1],[47.3,18.5],[47.3,16.4],[48.5,15.2]];
+const SECTOR_NUMBERS = {
+  san_mateo:"1", murcielago:"2", manta_centro:"3", tarqui:"4",
+  los_esteros:"5", eloy_alfaro:"6", barbasquillo:"7",
+};
+const SECTOR_MARKERS = {
+  san_mateo:[13,34.6], barbasquillo:[29,33.9], murcielago:[46,31.8],
+  manta_centro:[44,45.1], tarqui:[58,40.9], los_esteros:[75,39.5], eloy_alfaro:[73,59.1],
 };
 let mapVb = { ...MAP_DEFAULT_VB };
 const territoryShape = svgNode("path", { class: "territory-shape",
@@ -77,13 +84,14 @@ function appStatus(text, state = "ready") {
 
 function setBusy(busy) {
   field("simulate").disabled = busy;
-  field("randomize").disabled = busy;
-  field("simulate").textContent = busy ? "Generando…" : "Generar simulación";
+  field("randomize").disabled = false;
+  field("simulate").textContent = busy ? "Generando…" : "Ejecutar simulación";
   field("workspace").setAttribute("aria-busy", String(busy));
   field("map-loading").hidden = !busy;
   field("map-empty").hidden = busy || points.size > 0;
   if (busy) {
     stop();
+    field("report").hidden = true;
     appStatus("Generando escenario…", "loading");
     if (lastSimulation) field("results-context").textContent = "Actualizando · balance del escenario anterior";
   }
@@ -99,7 +107,7 @@ function syncPopulationLimits() {
   });
   for (const [id, maximum] of limits) {
     field(id).setAttribute("max", maximum);
-    if (changed && value(id) > maximum) field(id).value = String(maximum);
+    if (changed && !id.startsWith("initial-") && value(id) > maximum) field(id).value = String(maximum);
   }
   lastPopulation = n;
 }
@@ -112,6 +120,8 @@ function payload() {
     if (count > 0) initial[sector] = count;
   }
   return {
+    initial_state: Object.fromEntries(["s","e","i","r"].map(key=>[key,value(`count-${key}`)])),
+    all_s_import: field("all-s-import").checked,
     n: value("n"), days: value("days"), seed: value("seed"), beta: value("beta"),
     sigma: value("sigma"), gamma: value("gamma"), degree: value("degree"),
     initial, initial_ids: null,
@@ -130,19 +140,7 @@ function alertUser(message) {
 async function fetchSimulation(id) {
   if (simulationBusy) { if (id !== activeSimulationId) queuedSimulation = id; return; }
   clearTimeout(debounce);
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    setBusy(false);
-    appStatus("Revisa los parámetros", "error");
-    return;
-  }
-  const body = payload();
-  if (Object.values(body.initial).reduce((sum, count) => sum + count, 0) > body.n) {
-    alertUser("Los focos iniciales no pueden superar la población.");
-    setBusy(false);
-    appStatus("Revisa los focos iniciales", "error");
-    return;
-  }
+  const body = JSON.parse(JSON.stringify(acceptedScenario));
   simulationBusy = true;
   activeSimulationId = id;
   setBusy(true);
@@ -178,19 +176,109 @@ async function fetchSimulation(id) {
   }
 }
 
-form.addEventListener("input", () => {
+function syncDraft() {
+  field("n").value = String(["s","e","i","r"].reduce((sum,key)=>sum+value(`count-${key}`),0));
   syncPopulationLimits();
-  for (const id of ["beta", "efficacy"]) field(`${id}-value`).textContent = field(id).value;
-  invalidateEditedScenario();
+  for (const id of ["beta","efficacy"]) field(`${id}-value`).textContent = field(id).value;
+}
+
+function fillDraft(config) {
+  for (const key of ["n","days","seed","beta","sigma","gamma","degree"]) field(key).value = String(config[key]);
+  for (const key of ["s","e","i","r"]) field(`count-${key}`).value = String(config.initial_state[key]);
+  for (const key of ["mode","efficacy","quota","k_max"]) field(key).value = String(config.intervention[key]);
+  for (const sector of SECTORS) field(`initial-${sector}`).value = String(config.initial[sector] || 0);
+  field("include_frames").checked = config.include_frames;
+  field("all-s-import").checked = config.all_s_import;
+  field("incubation-days").value = config.sigma === 0 ? "0" : String(1/config.sigma);
+  syncDraft();
+}
+
+function draft() {
+  const numericFields=["days","seed","beta","sigma","gamma","degree","quota","k_max","efficacy","incubation-days",...["s","e","i","r"].map(key=>`count-${key}`),...SECTORS.map(sector=>`initial-${sector}`)];
+  if (numericFields.some(id=>String(field(id).value).trim()==="")) throw new Error("Completa todos los campos numéricos; puedes usar cero.");
+  if (!form.checkValidity()) throw new Error("Revisa los límites de los campos del escenario.");
+  const days = value("incubation-days");
+  if (!Number.isFinite(days) || days<0 || (days>0 && days<1)) throw new Error("La incubación media debe ser al menos 1 día, o 0 sin progresión.");
+  return Scenario.validate(payload());
+}
+
+function scenarioError(message) {
+  field("scenario-error").textContent = message;
+  field("scenario-error").hidden = false;
+}
+function acceptScenario() {
+  try {
+    syncDraft();
+    acceptedScenario = draft();
+    invalidateEditedScenario();
+    field("accepted-summary").textContent = `${acceptedScenario.n} personas · ${acceptedScenario.days} días · semilla ${acceptedScenario.seed}`;
+    field("scenario-dialog").close();
+    field("open-scenario").focus();
+    appStatus("Escenario aceptado · listo para ejecutar");
+  } catch (error) { scenarioError(error.message); }
+}
+function storage() {
+  try { return globalThis.localStorage; } catch (error) { return null; }
+}
+function renderPresets() {
+  const saved = Scenario.readPresets(storage());
+  const list = field("preset-list");
+  list.replaceChildren();
+  if (!saved.ok) field("preset-status").textContent = saved.error;
+  for (const [index,item] of [...Scenario.basePresets(),...saved.presets].entries()) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "preset-button";
+    button.textContent = `${item.name}${index<3 ? " · base" : ""}`;
+    button.addEventListener("click",()=>{
+      fillDraft(item.config);
+      field("scenario-error").hidden = true;
+      field("scenario-note").textContent = `${item.name}: borrador cargado. Acepta para utilizarlo.`;
+    });
+    list.appendChild(button);
+  }
+}
+function openScenario(config=acceptedScenario) {
+  fillDraft(config);
+  field("scenario-error").hidden = true;
+  renderPresets();
+  const dialog = field("scenario-dialog");
+  if (!dialog.open) dialog.showModal();
+  field("count-s").focus();
+}
+field("open-scenario").addEventListener("click",()=>openScenario());
+field("accept-scenario").addEventListener("click",acceptScenario);
+field("cancel-scenario").addEventListener("click",()=>field("scenario-dialog").close());
+field("scenario-dialog").addEventListener("close",()=>{
+  fillDraft(acceptedScenario);
+  field("open-scenario").focus();
 });
-form.addEventListener("change", () => {
-  syncPopulationLimits();
-  invalidateEditedScenario();
+field("scenario-dialog").addEventListener("cancel",()=>{
+  fillDraft(acceptedScenario);
+  field("open-scenario").focus();
 });
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-  field("run-batch").disabled = true;
-  clearTimeout(debounce);
+field("clear-scenario").addEventListener("click",()=>{fillDraft(Scenario.defaults()); field("scenario-error").hidden=true;});
+field("save-scenario").addEventListener("click",()=>{
+  try {
+    const saved = Scenario.savePreset(storage(),field("preset-name").value,draft());
+    if (!saved.ok) throw new Error(saved.error);
+    renderPresets();
+    field("preset-status").textContent = "Escenario guardado en este navegador. Aceptar sigue siendo independiente.";
+  } catch (error) { field("preset-status").textContent=error.message; }
+});
+field("incubation-days").addEventListener("input",()=>{
+  const days=value("incubation-days");
+  field("sigma").value=String(days===0 ? 0 : 1/days);
+});
+field("sigma").addEventListener("input",()=>{
+  const sigma=value("sigma");
+  field("incubation-days").value=String(sigma===0 ? 0 : 1/sigma);
+});
+form.addEventListener("input",syncDraft);
+form.addEventListener("change",syncDraft);
+form.addEventListener("submit",event=>{event.preventDefault(); acceptScenario();});
+field("simulate").addEventListener("click",()=>{
+  field("run-batch").disabled=true;
   fetchSimulation(++requestId);
 });
 
@@ -214,54 +302,103 @@ function containsPoint(polygon, x, y) {
 }
 
 function sectorPolygons() {
-  return Object.fromEntries(Object.entries(SECTOR_CENTERS).map(([sector, center]) => {
-    let cell = [...TERRITORY_POLYGON];
-    for (const other of Object.values(SECTOR_CENTERS)) {
-      if (other === center) continue;
-      const a = 2 * (other[0] - center[0]);
-      const b = 2 * (other[1] - center[1]);
-      const limit = other[0] ** 2 + other[1] ** 2 - center[0] ** 2 - center[1] ** 2;
-      const value = ([x,y]) => a * x + b * y - limit;
-      const clipped = [];
-      for (let i = 0; i < cell.length; i++) {
-        const current = cell[i], previous = cell[(i + cell.length - 1) % cell.length];
-        const currentValue = value(current), previousValue = value(previous);
-        const currentInside = currentValue <= 0, previousInside = previousValue <= 0;
-        if (currentInside !== previousInside) {
-          const ratio = previousValue / (previousValue - currentValue);
-          clipped.push([previous[0] + ratio * (current[0] - previous[0]), previous[1] + ratio * (current[1] - previous[1])]);
-        }
-        if (currentInside) clipped.push(current);
-      }
-      cell = clipped;
+  const cross = (a,b,c) => (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+  const area = TERRITORY_POLYGON.reduce((sum, [x,y], index) => {
+    const [nx,ny] = TERRITORY_POLYGON[(index+1)%TERRITORY_POLYGON.length];
+    return sum + x*ny - nx*y;
+  }, 0);
+  const orientation = Math.sign(area);
+  const remaining = TERRITORY_POLYGON.map((_, index) => index);
+  const triangles = [];
+  while (remaining.length > 3) {
+    let clipped = false;
+    for (let index = 0; index < remaining.length; index++) {
+      const previous = remaining[(index+remaining.length-1)%remaining.length];
+      const current = remaining[index];
+      const next = remaining[(index+1)%remaining.length];
+      const triangle = [TERRITORY_POLYGON[previous],TERRITORY_POLYGON[current],TERRITORY_POLYGON[next]];
+      if (cross(...triangle)*orientation <= 1e-8) continue;
+      const containsVertex = remaining.some(point => point !== previous && point !== current && point !== next &&
+        cross(triangle[0],triangle[1],TERRITORY_POLYGON[point])*orientation > 1e-8 &&
+        cross(triangle[1],triangle[2],TERRITORY_POLYGON[point])*orientation > 1e-8 &&
+        cross(triangle[2],triangle[0],TERRITORY_POLYGON[point])*orientation > 1e-8);
+      if (containsVertex) continue;
+      triangles.push(triangle);
+      remaining.splice(index,1);
+      clipped = true;
+      break;
     }
-    return [sector, cell];
-  }));
-}
-
-function boundaryDistance(polygon, x, y) {
-  return Math.min(...polygon.map(([x1,y1], index) => {
-    const [x2,y2] = polygon[(index + 1) % polygon.length];
-    const ratio = Math.max(0, Math.min(1, ((x-x1)*(x2-x1)+(y-y1)*(y2-y1))/((x2-x1)**2+(y2-y1)**2)));
-    return Math.hypot(x-(x1+ratio*(x2-x1)), y-(y1+ratio*(y2-y1)));
-  }));
-}
-
-function pointsInRegion(polygon, count, clearance) {
-  if (!count) return [];
-  const xs = polygon.map(([x]) => x), ys = polygon.map(([,y]) => y);
-  let area = 0;
-  for (let i = 0; i < polygon.length; i++) {
-    const [x1,y1] = polygon[i], [x2,y2] = polygon[(i + 1) % polygon.length];
-    area += x1 * y2 - x2 * y1;
+    if (!clipped) throw new Error("The territory outline cannot be partitioned into SVG triangles.");
   }
-  let step = Math.min(1.1, Math.sqrt(Math.abs(area) / (2 * count)) * .62);
+  triangles.push(remaining.map(index => TERRITORY_POLYGON[index]));
+  const centers=triangles.map(triangle=>[triangle.reduce((sum,point)=>sum+point[0],0)/3,triangle.reduce((sum,point)=>sum+point[1],0)/3]);
+  const regions=Object.fromEntries(Object.keys(SECTOR_MARKERS).map(sector=>[sector,[]]));
+  const triangleOwners=Array(triangles.length).fill(null);
+  const edges = new Map();
+  for (const [triangleIndex,triangle] of triangles.entries()) {
+    for (let index = 0; index < 3; index++) {
+      const from = triangle[index], to = triangle[(index+1)%3];
+      const key = [from.join(","),to.join(",")].sort().join("|");
+      if (!edges.has(key)) edges.set(key,[]);
+      edges.get(key).push({triangleIndex,from,to});
+    }
+  }
+  const neighbors=Array.from({length:triangles.length},()=>[]);
+  for(const owners of edges.values()) if(owners.length===2) {
+    const [a,b]=owners.map(owner=>owner.triangleIndex);
+    const distance=Math.hypot(centers[a][0]-centers[b][0],centers[a][1]-centers[b][1]);
+    neighbors[a].push([b,distance]); neighbors[b].push([a,distance]);
+  }
+  const frontier=Object.entries(SECTOR_MARKERS).map(([sector,[x,y]])=>{
+    const index=triangles.findIndex(triangle=>containsPoint(triangle,x,y));
+    if(index<0) throw new Error(`The ${sector} marker must be inside the territory triangulation.`);
+    triangleOwners[index]=sector;
+    return {index,sector,distance:0};
+  });
+  const processed=new Set();
+  while(frontier.length) {
+    frontier.sort((a,b)=>a.distance-b.distance);
+    const current=frontier.shift();
+    if(processed.has(current.index)||triangleOwners[current.index]&&triangleOwners[current.index]!==current.sector) continue;
+    triangleOwners[current.index]=current.sector;
+    processed.add(current.index);
+    for(const [index,distance] of neighbors[current.index]) if(!processed.has(index)) {
+      frontier.push({index,sector:current.sector,distance:current.distance+distance});
+    }
+  }
+  triangles.forEach((triangle,index)=>regions[triangleOwners[index]].push(triangle));
+  const boundaries = Object.fromEntries(Object.keys(SECTOR_MARKERS).map(sector => [sector,[]]));
+  for (const owners of edges.values()) {
+    const sectors = [...new Set(owners.map(owner=>triangleOwners[owner.triangleIndex]))];
+    if (sectors.length > 1 || owners.length === 1) for (const sector of sectors) {
+      const edge = owners.find(owner=>triangleOwners[owner.triangleIndex]===sector);
+      boundaries[sector].push([edge.from,edge.to]);
+    }
+  }
+  return {regions,boundaries,markers:SECTOR_MARKERS};
+}
+
+function edgeListDistance(edges, x, y) {
+  return Math.min(...edges.map(([[x1,y1],[x2,y2]]) => {
+    const ratio = Math.max(0,Math.min(1,((x-x1)*(x2-x1)+(y-y1)*(y2-y1))/((x2-x1)**2+(y2-y1)**2)));
+    return Math.hypot(x-(x1+ratio*(x2-x1)),y-(y1+ratio*(y2-y1)));
+  }));
+}
+
+function pointsInRegion(polygons, edges, count, clearance, markers) {
+  if (!count) return [];
+  const xs = polygons.flat().map(([x]) => x), ys = polygons.flat().map(([,y]) => y);
+  const area = polygons.reduce((sum,polygon)=>sum+Math.abs(polygon.reduce((value,[x,y],index)=>{
+    const [nx,ny]=polygon[(index+1)%polygon.length]; return value+x*ny-nx*y;
+  },0))/2,0);
+  let step = Math.min(1.1, Math.sqrt(area / (2 * count)) * .62);
   let candidates = [];
-  for (let attempt = 0; attempt < 6; attempt++, step *= .75) {
+  for (let attempt = 0; attempt < 10; attempt++, step *= .75) {
+    const minimumClearance = attempt < 6 ? clearance : Math.max(.12, clearance * .75 ** (attempt - 5));
     candidates = [];
     for (let y = Math.min(...ys) + step / 2; y < Math.max(...ys); y += step) {
       for (let x = Math.min(...xs) + step / 2; x < Math.max(...xs); x += step) {
-        if (containsPoint(polygon, x, y) && boundaryDistance(polygon, x, y) >= clearance) candidates.push({x,y});
+        if (polygons.some(polygon=>containsPoint(polygon,x,y)) && edgeListDistance(edges,x,y)>=minimumClearance && markers.every(([markerX,markerY])=>Math.hypot(x-markerX,y-markerY)>2.5)) candidates.push({x,y});
       }
     }
     if (candidates.length >= count) break;
@@ -334,7 +471,7 @@ function symbol(id, x, y, state, scale = 1) {
     });
     node = svgNode("polygon", { ...common, points: vertices.join(" ") });
   } else node = svgNode("circle", { ...common, cx: x, cy: y, r: .48 * scale });
-  const names = { S: "susceptible", E: "expuesto", I: "infeccioso", R: "recuperado", V: "brigadista" };
+  const names = { S: "susceptible", E: "expuesto", I: "infeccioso", R: "recuperado", V: "recuperado, brigadista" };
   node.setAttribute("aria-label", `Nodo ${id}: ${names[state] || names.S}`);
   return node;
 }
@@ -357,11 +494,12 @@ function paintPoint(point, state) {
 function stop() {
   clearTimeout(playback);
   playback = null;
-  const available = points.size > 0 && frames.length > 0;
+  const available = Boolean(lastSimulation);
   field("play").disabled = !available;
   field("pause").disabled = true;
   field("restart").disabled = !available;
-  const ended = available && currentDay >= frames[frames.length - 1].day;
+  const ended = available && currentDay >= (frames.at(-1)?.day ?? 0);
+  field("stop").disabled = !available;
   field("play").textContent = "▶";
   field("play").setAttribute("aria-label", ended ? "Repetir animación" : "Reproducir animación");
   field("play").setAttribute("title", ended ? "Repetir desde el día cero" : "Reproducir animación");
@@ -384,12 +522,13 @@ function updateDay() {
     const x = 52 + 650 * Math.min(currentDay, days) / days;
     chartCursor.setAttribute("x1", x);
     chartCursor.setAttribute("x2", x);
-    chartCursor.setAttribute("opacity", frames.length && points.size ? "1" : "0");
+    chartCursor.setAttribute("opacity", lastSimulation ? "1" : "0");
   }
 }
 
 function seek(day) {
   stop();
+  field("report").hidden=true;
   for (const point of modifiedPoints) {
     paintPoint(point, point.state);
   }
@@ -411,7 +550,7 @@ function seek(day) {
 
 function nextFrame() {
   const frame = frames.find((item) => item.day > currentDay);
-  if (!frame) { stop(); return; }
+  if (!frame) { stop(); finishPlayback(); return; }
   for (const change of frame.changed) {
     const point = points.get(change.id);
     if (point) {
@@ -422,22 +561,32 @@ function nextFrame() {
   currentDay = frame.day;
   updateDay();
   if (frames.some((item) => item.day > currentDay)) playback = setTimeout(nextFrame, Number(field("speed").value));
-  else stop();
+  else { stop(); finishPlayback(); }
+}
+
+function finishPlayback() {
+  if (!lastSimulation || simulationBusy || lastSimulationId !== requestId) return;
+  field("report").hidden=false;
+  field("report").open=true;
 }
 
 function startPlayback() {
-  if (!points.size || !frames.length) return;
+  if (!lastSimulation || simulationBusy) return;
   stop();
-  if (currentDay >= frames[frames.length - 1].day) seek(0);
-  field("play").disabled = true;
+  if (currentDay >= (frames.at(-1)?.day ?? 0)) seek(0);
+  field("report").hidden=true;
+  field("play").disabled = false;
+  field("play").textContent="Ⅱ";
+  field("play").setAttribute("aria-label","Pausar animación");
   field("pause").disabled = false;
   field("playback-status").textContent = "Reproduciendo";
   field("playback-status").setAttribute("data-playing", "true");
   playback = setTimeout(nextFrame, Number(field("speed").value));
 }
-field("play").addEventListener("click", startPlayback);
+field("play").addEventListener("click", () => playback !== null ? stop() : startPlayback());
 field("pause").addEventListener("click", stop);
-field("restart").addEventListener("click", () => seek(0));
+field("stop").addEventListener("click", () => seek(0));
+field("restart").addEventListener("click", () => {seek(0); startPlayback();});
 field("speed").addEventListener("change", () => { if (playback !== null) startPlayback(); });
 
 let seekRaf = null;
@@ -456,7 +605,7 @@ field("timeline").addEventListener("input", () => {
 
 function drawMap(data) {
   stop();
-  frames = Array.isArray(data.frames) ? data.frames : [];
+  frames = Array.isArray(data.frames) ? data.frames : data.strategies.proposed.days.slice(1).map(row=>({day:row.day,changed:[]}));
   points = new Map();
   modifiedPoints.clear();
   resetMapView();
@@ -466,15 +615,12 @@ function drawMap(data) {
   field("map-empty").hidden = Boolean(graph?.nodes?.length);
   if (!graph || !Array.isArray(graph.nodes) || !graph.nodes.length) {
     field("map-status").textContent = data.meta?.animation_warning ? "La red es demasiado densa para la vista detallada; las curvas y métricas están completas." : "Red territorial no disponible en esta respuesta; las curvas y métricas siguen visibles.";
-    field("map-empty-title").textContent = data.meta?.animation_warning ? "Una red demasiado densa" : "Animación desactivada";
-    field("map-empty-copy").textContent = data.meta?.animation_warning ? "Reduce la población o el grado medio para explorar la red." : "Activa «Animar la red» en la configuración para seguir el día a día.";
   } else {
-    const centers = SECTOR_CENTERS;
-    const names = {tarqui:"Tarqui",eloy_alfaro:"Eloy Alfaro",los_esteros:"Los Esteros",manta_centro:"Manta Centro",murcielago:"Murciélago",barbasquillo:"Barbasquillo",san_mateo:"San Mateo"};
+    const {regions,boundaries,markers} = sectorPolygons();
+    const centers = markers;
     const present = new Set(graph.nodes.map(node => node.sector));
-    const regions = sectorPolygons();
     for (const sector of SECTORS) {
-      map.appendChild(svgNode("path", {d:polygonPath(regions[sector]), class:"sector-region", "data-sector":sector}));
+      map.appendChild(svgNode("path", {d:regions[sector].map(polygonPath).join(" "), class:"sector-region", "data-sector":sector}));
     }
     for (const sector of SECTORS) if (present.has(sector)) {
       const [x,y] = centers[sector];
@@ -483,12 +629,13 @@ function drawMap(data) {
     const layoutNodes = graph.nodes.map(point => ({ ...point }));
     for (const sector of SECTORS) {
       const members = layoutNodes.filter(point => point.sector === sector);
+      if (!members.length) continue;
       const region = regions[sector];
-      const area = Math.abs(region.reduce((sum, [x,y], index) => {
-        const [nx,ny] = region[(index + 1) % region.length]; return sum + x * ny - nx * y;
-      }, 0)) / 2;
-      const scale = Math.max(.28, Math.min(.8, Math.sqrt(area / Math.max(1, members.length)) * .36));
-      const positions = pointsInRegion(region, members.length, scale * .85 + .15);
+      const area = region.reduce((sum,polygon)=>sum+Math.abs(polygon.reduce((value,[x,y],index)=>{
+        const [nx,ny]=polygon[(index+1)%polygon.length]; return value+x*ny-nx*y;
+      },0))/2,0);
+      const scale = Math.max(.14, Math.min(.35, Math.sqrt(area / Math.max(1, members.length)) * .12));
+      const positions = pointsInRegion(region, boundaries[sector], members.length, scale * .85 + .15, Object.values(centers));
       members.forEach((point, index) => {
         point.displayX = positions[index].x;
         point.displayY = positions[index].y;
@@ -511,21 +658,24 @@ function drawMap(data) {
       }
     }
     for (const { id, x, y, displayX, displayY, displayScale, state, sector, label: nodeLabel } of layoutNodes) {
-      const group = svgNode("g", {"data-sector":sector, "data-x":displayX ?? x, "data-y":displayY ?? y, "data-scale":displayScale ?? 1});
+      const group = svgNode("g", {class:"node-group", "data-sector":sector, "data-x":displayX ?? x, "data-y":displayY ?? y, "data-scale":displayScale ?? 1});
       const point = { id, x: displayX ?? x, y: displayY ?? y, scale: displayScale ?? 1, state, sector, group, label: nodeLabel };
       points.set(id, point);
       paintPoint(point, state);
       map.appendChild(group);
     }
-    for (const sector of SECTORS) if (present.has(sector)) {
+    for (const sector of SECTORS) {
+      map.appendChild(svgNode("path", {d:boundaries[sector].map(([[x1,y1],[x2,y2]])=>`M${x1} ${y1} L${x2} ${y2}`).join(" "), class:"sector-boundary", "data-sector":sector}));
+    }
+    for (const sector of SECTORS) {
       const [x,y] = centers[sector];
-      const text = svgNode("text", {x,y:sector === "manta_centro" ? y+10.8 : y-10.6,"text-anchor":"middle",class:"sector-label"});
-      text.textContent = names[sector];
+      const text = svgNode("text", {x,y,"text-anchor":"middle",class:"sector-number","data-sector":sector});
+      text.textContent = SECTOR_NUMBERS[sector];
       map.appendChild(text);
     }
     field("map-status").textContent = `Red territorial: ${points.size} nodos.`;
   }
-  field("play").disabled = field("pause").disabled = field("timeline").disabled = !points.size || !frames.length;
+  field("play").disabled = field("pause").disabled = field("timeline").disabled = !frames.length;
   field("timeline").max = String(frames.length ? frames[frames.length - 1].day : 0);
   seek(0);
 }
@@ -558,12 +708,15 @@ function metrics(data) {
     `el protocolo propuesto registró ${metric.cumulative_infections} contagios acumulados. ` +
     `Contagios evitados: ${metric.avoided_infections} frente a no intervenir. ` +
     `Pico de infección: ${metric.peak_i} en el día ${metric.peak_day}. ` +
+    (data.meta.external_import ? `Importación externa: un caso I el día ${data.meta.external_import.day}; el día 0 no incluye ese caso. ` : "") +
     `Dosis gastadas: ${metric.doses_spent}. Brigadistas activos: ${metric.active_volunteers ?? 0}; ` +
     `reinfecciones ocupacionales: ${metric.volunteer_reinfections ?? 0}. ` + DISCLAIMER;
 }
 
 function show(data, body) {
   lastSimulation = data;
+  lastAggregate = null;
+  field("aggregate-report").textContent="";
   lastPayload = body;
   lastSimulationId = requestId;
   drawCurves(data);
@@ -603,7 +756,9 @@ field("run-batch").addEventListener("click", async () => {
         metrics: { peak_i: Math.max(...data.series[key].mean) },
       };
     }
+    lastAggregate = data;
     drawCurves({ strategies, range: data.series.proposed });
+    aggregateReport(data);
     field("monte-carlo-status").textContent = `Curvas: medias de ${data.replicas} réplicas; banda: rango empírico de la propuesta. Tarjetas e informe: simulación individual, semilla ${original.meta.seed ?? lastPayload.seed}.`;
   } catch (error) {
     if (id === requestId) {
@@ -635,12 +790,12 @@ field("randomize").addEventListener("click", () => {
   for (let i=sectors.length-1;i>0;i--) { const j=integer(0,i); [sectors[i],sectors[j]]=[sectors[j],sectors[i]]; }
   const active = sectors.slice(0,integer(1,3));
   for (const sector of SECTORS) field(`initial-${sector}`).value = active.includes(sector) ? String(integer(2,12)) : "0";
-  for (const id of ["beta","efficacy"]) field(`${id}-value`).textContent = field(id).value;
-  field("scenario-note").textContent = `Parámetros al azar listos · semilla ${seed} · ${n} personas · ${active.length} ${active.length===1?"foco":"focos"}. Selecciona Generar simulación para ejecutarlos.`;
-  clearTimeout(debounce);
-  requestId += 1;
-  field("run-batch").disabled = true;
-  appStatus("Parámetros al azar listos · falta generar la simulación");
+  const infectious = SECTORS.reduce((sum,sector)=>sum+value(`initial-${sector}`),0);
+  for (const [key,count] of Object.entries({s:n-infectious,e:0,i:infectious,r:0})) field(`count-${key}`).value=String(count);
+  field("incubation-days").value=String(1/value("sigma"));
+  syncDraft();
+  field("scenario-note").textContent = `Parámetros al azar listos · semilla ${seed} · ${n} personas · ${active.length} ${active.length===1?"foco":"focos"}. Acepta el borrador y luego ejecuta la simulación.`;
+  appStatus("Borrador al azar listo · acepta para utilizarlo");
 });
 
 for (const strategy of ["proposed", "random", "none"]) field(`strategy-${strategy}`).disabled = true;
@@ -653,29 +808,12 @@ for (const strategy of ["proposed", "random", "none"]) {
       selected.intervention.k_max = 0;
       selected.intervention.quota = 0;
     }
-    field("n").value = String(selected.n);
-    field("days").value = String(selected.days);
-    field("seed").value = String(selected.seed);
-    field("beta").value = String(selected.beta);
-    field("sigma").value = String(selected.sigma);
-    field("gamma").value = String(selected.gamma);
-    field("degree").value = String(selected.degree);
-    field("mode").value = selected.intervention.mode;
-    field("efficacy").value = String(selected.intervention.efficacy);
-    field("quota").value = String(selected.intervention.quota);
-    field("k_max").value = String(selected.intervention.k_max);
-    field("include_frames").checked = selected.include_frames;
-    for (const sector of SECTORS) field(`initial-${sector}`).value = String(selected.initial[sector] || 0);
-    syncPopulationLimits();
-    field("beta-value").textContent = field("beta").value;
-    field("efficacy-value").textContent = field("efficacy").value;
-    requestId += 1;
-    field("run-batch").disabled = true;
+    openScenario(selected);
     field("scenario-note").textContent = strategy === "random"
       ? "Asignación al azar cambia cómo se reparten las dosis; no es un escenario aleatorio. Se cargaron las condiciones de la última simulación."
       : strategy === "none"
-        ? "Se cargaron las mismas condiciones de la última simulación, sin dosis. Genera la simulación para actualizar el resultado."
-        : "Se cargaron las condiciones de la propuesta en la última simulación. Genera de nuevo para actualizar el resultado.";
+        ? "Se cargaron las mismas condiciones de la última simulación, sin dosis. Acepta el borrador y ejecuta para actualizar el resultado."
+        : "Se cargaron las condiciones de la propuesta en la última simulación. Acepta el borrador y ejecuta para actualizar el resultado.";
     const layout = document.querySelector(".layout");
     layout.setAttribute("data-controls-open", "true");
     field("sidebar-toggle").setAttribute("aria-expanded", "true");
@@ -719,6 +857,10 @@ if (filterBridges) filterBridges.addEventListener("change", (e) => {
   const map = field("map");
   if (map) map.setAttribute("data-filter-bridges", e.target?.checked || filterBridges.checked ? "true" : "false");
 });
+const filterConnections = field("filter-connections");
+if (filterConnections) filterConnections.addEventListener("change", () => {
+  field("map").setAttribute("data-show-connections", String(filterConnections.checked));
+});
 
 const mapEl = field("map");
 if (mapEl) {
@@ -748,4 +890,22 @@ if (typeof window !== "undefined") {
   window.addEventListener("mouseup", () => {
     isPanning = false;
   });
+}
+
+function aggregateReport(data) {
+  const container=field("aggregate-report");
+  container.replaceChildren();
+  const heading=document.createElement("h3");
+  heading.textContent=`Agregado independiente · ${data.replicas} réplicas (medias y rango empírico p2.5–p97.5)`;
+  container.appendChild(heading);
+  for (const [key,name] of [["proposed","Propuesta"],["random","Al azar"],["none","Sin intervención"]]) {
+    const summary=data.strategies[key];
+    if (!summary) continue;
+    const paragraph=document.createElement("p");
+    paragraph.textContent=name+": "+[["avoided_infections","contagios evitados"],["peak_i","pico I"],["doses_spent","dosis"]].map(([metric,label])=>{
+      const result=summary[metric];
+      return result ? `${label}: media ${result.mean.toFixed(2)}, rango ${result.p2_5.toFixed(2)}–${result.p97_5.toFixed(2)}` : `${label}: no disponible`;
+    }).join("; ")+". El mapa, las tarjetas y el informe anterior pertenecen a una sola semilla, no a estas medias.";
+    container.appendChild(paragraph);
+  }
 }

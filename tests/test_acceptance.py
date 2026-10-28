@@ -65,3 +65,30 @@ def test_default_hubs_have_approximately_four_times_mean_degree():
     graph = generate_manta_graph(1000, 8, random.Random(42))
     mean = graph.graph.average_degree()
     assert all(3 * mean <= graph.graph.degree(hub) <= 5 * mean for hub in graph.hubs)
+
+
+def test_explicit_seir_allocation_and_day_one_import():
+    from collections import Counter
+    from seir.app import simulate_request
+    base = {"n": 70, "days": 2, "degree": 0, "beta": 0.0, "sigma": 0.0, "gamma": 0.0,
+            "initial": {"tarqui": 2}, "initial_state": {"s": 60, "e": 3, "i": 5, "r": 2},
+            "include_frames": True, "all_s_import": True}
+    result = simulate_request(base)
+    assert result == simulate_request(base)
+    assert Counter(node["state"] for node in result["graph"]["nodes"]) == {"S": 60, "E": 3, "I": 5, "R": 2}
+    for strategy in result["strategies"].values():
+        assert [strategy["days"][0][key] for key in ("s", "e", "i", "r")] == [60, 3, 5, 2]
+        assert all(sum(row[key] for key in ("s", "e", "i", "r")) == 70 for row in strategy["days"])
+    imported = simulate_request(base | {"initial": {}, "initial_state": {"s": 70, "e": 0, "i": 0, "r": 0}})
+    assert imported["meta"]["external_import"] == {"day": 1, "node": imported["meta"]["external_import"]["node"], "state": "I"}
+    assert all(node["state"] == "S" for node in imported["graph"]["nodes"])
+    for strategy in imported["strategies"].values():
+        assert strategy["days"][0]["i"] == 0
+        assert strategy["days"][1]["i"] == 1
+        assert strategy["days"][1]["imported_cases"] == 1
+        assert strategy["days"][1]["cumulative"] == 1
+    assert len(imported["frames"][0]["changed"]) == 1
+    legacy = simulate_request({"n": 70, "days": 2, "initial": {}})
+    assert all(row["i"] == 0 for row in legacy["strategies"]["none"]["days"])
+    exposed = simulate_request(base | {"initial": {}, "initial_state": {"s": 67, "e": 3, "i": 0, "r": 0}})
+    assert exposed["meta"]["external_import"] is None
